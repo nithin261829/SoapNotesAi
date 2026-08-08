@@ -1,0 +1,12 @@
+# Google-managed TLS certificate. GKE provisions + renews it automatically
+# once the DNS record for `domains` resolves to the ingress IP.
+#
+# Replace DOMAIN_NAME below before applying (deploy.sh substitutes from env).
+apiVersion: networking.gke.io/v1
+kind: ManagedCertificate
+metadata:
+  name: backend-cert
+  namespace: soapnotesai
+spec:
+  domains:
+  - DOMAIN_NAME

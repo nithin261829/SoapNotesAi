@@ -1,0 +1,20 @@
+# Keep build context small + never bake secrets into the image.
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+.env
+.env.*
+!.env.example
+# Service-account JSONs live outside the repo; double-guard anyway.
+*-firebase-adminsdk*.json
+*service-account*.json
+*serviceAccount*.json
+*-key.json
+google-credentials*.json
+htmlcov/
+.coverage
+tests/
+README.md

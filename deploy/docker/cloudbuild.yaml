@@ -1,0 +1,43 @@
+# Cloud Build config — built remotely, no local Docker needed.
+#
+# Invoked from the repo root by deploy/scripts/03-build-and-push.sh:
+#   gcloud builds submit \
+#     --config=deploy/docker/cloudbuild.yaml \
+#     --substitutions=_APP_VERSION=...,_GIT_SHA=...,_BUILD_TS=...,_IMAGE_TAG=...,_IMAGE_URI=...
+#
+# All `_FOO` substitutions are required (no defaults — fail loud if missing).
+steps:
+  # Build with build-args so /healthz can report the same metadata the
+  # local-docker path would have produced.
+  - name: gcr.io/cloud-builders/docker
+    id: build
+    args:
+      - build
+      - --file=deploy/docker/Dockerfile
+      - --build-arg=BUILD_GIT_SHA=${_GIT_SHA}
+      - --build-arg=BUILD_TIMESTAMP=${_BUILD_TS}
+      - --build-arg=IMAGE_TAG=${_IMAGE_TAG}
+      - --tag=${_IMAGE_URI}
+      - --tag=${_LATEST_URI}
+      - backend  # build context
+
+  # Push both the versioned tag and :latest.
+  - name: gcr.io/cloud-builders/docker
+    id: push-versioned
+    args: [push, '${_IMAGE_URI}']
+  - name: gcr.io/cloud-builders/docker
+    id: push-latest
+    args: [push, '${_LATEST_URI}']
+
+# Tell Cloud Build which images we produced so it shows up nicely in the
+# build history UI.
+images:
+  - ${_IMAGE_URI}
+  - ${_LATEST_URI}
+
+options:
+  # E2_HIGHCPU_8 keeps build times reasonable for the multi-stage image.
+  machineType: E2_HIGHCPU_8
+  logging: CLOUD_LOGGING_ONLY
+
+timeout: 1200s

@@ -1,0 +1,45 @@
+# Keep Cloud Build uploads small + never ship secrets.
+# Anything matching these is omitted from the build tarball.
+
+.git/
+.gitignore
+.github/
+.idea/
+.vscode/
+.DS_Store
+
+# Mobile (not built in Cloud Build)
+mobile/node_modules/
+mobile/.expo/
+mobile/.expo-shared/
+mobile/ios/
+mobile/android/
+mobile/web-build/
+mobile/dist/
+
+# Python
+**/__pycache__/
+**/*.pyc
+**/.pytest_cache/
+**/.ruff_cache/
+**/.mypy_cache/
+**/.venv/
+**/.coverage
+**/htmlcov/
+
+# Secrets — gitignore already covers these but belt-and-braces
+**/.env
+**/.env.*
+!**/.env.example
+*service-account*.json
+*serviceAccount*.json
+*-firebase-adminsdk*.json
+*-key.json
+google-credentials*.json
+
+# Docs / archives not needed for the build
+docs/
+deploy/k8s-archive/
+README.md
+soap-notes-app-claude-code-prompt.md
+.claude/

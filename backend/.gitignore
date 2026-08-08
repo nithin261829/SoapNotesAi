@@ -1,0 +1,12 @@
+.venv/
+.env
+*.egg-info/
+__pycache__/
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+htmlcov/
+.coverage
+dist/
+build/
+*service-account*.json

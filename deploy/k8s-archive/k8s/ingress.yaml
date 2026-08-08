@@ -1,0 +1,30 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: backend
+  namespace: soapnotesai
+  annotations:
+    # GCE = Google Cloud HTTPS Load Balancer.
+    kubernetes.io/ingress.class: "gce"
+    # Static IP reserved by 00-create-cluster.sh — same name expected here.
+    kubernetes.io/ingress.global-static-ip-name: "soapnotesai-api-ip"
+    # Attach the Google-managed cert from managed-certificate.yaml.
+    networking.gke.io/managed-certificates: "backend-cert"
+    # Force-redirect HTTP -> HTTPS.
+    networking.gke.io/v1beta1.FrontendConfig: "backend-frontend"
+spec:
+  defaultBackend:
+    service:
+      name: backend
+      port:
+        number: 80
+---
+apiVersion: networking.gke.io/v1beta1
+kind: FrontendConfig
+metadata:
+  name: backend-frontend
+  namespace: soapnotesai
+spec:
+  redirectToHttps:
+    enabled: true
+    responseCodeName: MOVED_PERMANENTLY_DEFAULT

@@ -1,0 +1,47 @@
+# Secrets — never commit
+*.env
+.env
+.env.*
+!.env.example
+*service-account*.json
+*serviceAccount*.json
+*-key.json
+google-credentials*.json
+*firebase-adminsdk*.json
+*adminsdk*.json
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+htmlcov/
+.coverage
+dist/
+build/
+
+# Node / Expo
+node_modules/
+.expo/
+.expo-shared/
+dist/
+web-build/
+*.tsbuildinfo
+
+# IDE
+.vscode/
+.idea/
+*.swp
+.DS_Store
+
+# Firebase
+.firebase/
+firebase-debug.log
+firestore-debug.log
+
+# OS
+Thumbs.db

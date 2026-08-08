@@ -1,0 +1,311 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>SOAP Note — {{ patient.name or "Patient" }}</title>
+  <style>
+    @page {
+      size: Letter;
+      margin: 0.75in 0.7in 0.85in;
+      @bottom-center {
+        content: "{{ clinic.letterhead.name }}  ·  Page " counter(page) " / " counter(pages);
+        color: #888;
+        font-size: 8.5pt;
+      }
+    }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+      font-size: 10.5pt;
+      color: #111;
+      line-height: 1.4;
+    }
+    header {
+      border-bottom: 2px solid #111;
+      padding-bottom: 8pt;
+      margin-bottom: 14pt;
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-end;
+    }
+    .clinic-name {
+      font-size: 16pt;
+      font-weight: 700;
+      letter-spacing: -0.3pt;
+    }
+    .meta { font-size: 9pt; color: #555; text-align: right; }
+    .patient-bar {
+      background: #f4f4f4;
+      border: 1px solid #ddd;
+      border-radius: 4pt;
+      padding: 7pt 10pt;
+      margin-bottom: 14pt;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 22pt;
+    }
+    .patient-bar div { font-size: 9.5pt; }
+    .patient-bar .label {
+      color: #666; text-transform: uppercase; letter-spacing: 0.6pt;
+      font-size: 7.5pt; font-weight: 700;
+    }
+    .patient-bar .value { font-size: 11pt; font-weight: 600; }
+    section.s { margin-top: 14pt; page-break-inside: avoid; }
+    section.s h2 {
+      font-size: 11pt; text-transform: uppercase; letter-spacing: 1pt;
+      border-bottom: 1px solid #aaa; padding-bottom: 3pt; margin: 0 0 6pt;
+    }
+    .field { margin: 5pt 0; }
+    .field .label {
+      font-size: 8pt; text-transform: uppercase; color: #666;
+      letter-spacing: 0.6pt; font-weight: 700;
+    }
+    .field .value { margin-top: 1pt; }
+    ul.bullets { margin: 4pt 0 4pt 18pt; padding: 0; }
+    ul.bullets li { margin: 2pt 0; }
+    .empty { color: #999; font-style: italic; }
+    .vitals { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6pt; margin-top: 4pt; }
+    .vital { border: 1px solid #ddd; border-radius: 3pt; padding: 5pt 7pt; }
+    .vital .label {
+      font-size: 7pt; color: #666; text-transform: uppercase;
+      letter-spacing: 0.6pt; font-weight: 700;
+    }
+    .vital .value {
+      font-size: 11pt; font-weight: 600; font-variant-numeric: tabular-nums;
+    }
+    .vital .unit { color: #888; font-weight: 400; font-size: 9pt; }
+    table.med-table {
+      width: 100%; border-collapse: collapse; margin-top: 4pt; font-size: 9.5pt;
+    }
+    table.med-table th, table.med-table td {
+      text-align: left; padding: 4pt 6pt;
+      border-bottom: 1px solid #eee; vertical-align: top;
+    }
+    table.med-table th {
+      background: #f7f7f7; font-weight: 700; font-size: 8pt;
+      text-transform: uppercase; letter-spacing: 0.5pt; color: #555;
+    }
+    .signature {
+      margin-top: 30pt; padding-top: 8pt; border-top: 1px dashed #999;
+      display: flex; justify-content: space-between; font-size: 9.5pt;
+    }
+    .transcript {
+      margin-top: 20pt; padding-top: 10pt; border-top: 1px solid #ddd;
+      font-size: 9pt; color: #444; page-break-before: always;
+    }
+    .transcript h2 {
+      font-size: 10pt; text-transform: uppercase; letter-spacing: 1pt;
+      margin: 0 0 6pt;
+    }
+    .transcript p { white-space: pre-wrap; line-height: 1.5; }
+    .disclaimer {
+      margin-top: 18pt; font-size: 8pt; color: #999; font-style: italic;
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <div>
+      <div class="clinic-name">{{ clinic.letterhead.name }}</div>
+      <div style="font-size: 8.5pt; color: #666; margin-top: 2pt;">SOAP note · clinician draft</div>
+    </div>
+    <div class="meta">
+      Generated {{ generated_at }}<br>
+      Encounter date: {{ patient.encounter_date }}
+    </div>
+  </header>
+
+  <div class="patient-bar">
+    <div>
+      <div class="label">Name</div>
+      <div class="value">{{ patient.name or "—" }}</div>
+    </div>
+    <div>
+      <div class="label">Age</div>
+      <div class="value">{{ patient.age if patient.age is not none else "—" }}</div>
+    </div>
+    <div>
+      <div class="label">Sex</div>
+      <div class="value">{{ patient.sex or "—" }}</div>
+    </div>
+  </div>
+
+  <section class="s">
+    <h2>Subjective</h2>
+    <div class="field">
+      <div class="label">Chief complaint</div>
+      <div class="value">{{ subjective.chief_complaint or "" }}</div>
+    </div>
+    {% if subjective.history_present_illness %}
+    <div class="field">
+      <div class="label">History of present illness</div>
+      <div class="value">{{ subjective.history_present_illness }}</div>
+    </div>
+    {% endif %}
+    {% if subjective.relevant_history %}
+    <div class="field">
+      <div class="label">Relevant history</div>
+      <div class="value">{{ subjective.relevant_history }}</div>
+    </div>
+    {% endif %}
+    <div class="field">
+      <div class="label">Symptoms</div>
+      {% if subjective.symptoms %}
+      <ul class="bullets">
+        {% for s in subjective.symptoms %}<li>{{ s }}</li>{% endfor %}
+      </ul>
+      {% else %}<div class="empty">— not documented</div>{% endif %}
+    </div>
+    <div class="field">
+      <div class="label">Current medications</div>
+      {% if subjective.current_medications %}
+      <table class="med-table">
+        <thead><tr><th>Name</th><th>Dose</th><th>Route</th><th>Frequency</th><th>Duration</th></tr></thead>
+        <tbody>
+          {% for m in subjective.current_medications %}
+          <tr>
+            <td>{{ m.name }}</td><td>{{ m.dose or "" }}</td>
+            <td>{{ m.route or "" }}</td><td>{{ m.frequency or "" }}</td>
+            <td>{{ m.duration or "" }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+      {% else %}<div class="empty">— not documented</div>{% endif %}
+    </div>
+    <div class="field">
+      <div class="label">Allergies</div>
+      {% if subjective.allergies %}
+      <ul class="bullets">
+        {% for a in subjective.allergies %}
+        <li>
+          <strong>{{ a.substance }}</strong>
+          {% if a.severity %} — {{ a.severity }}{% endif %}
+          {% if a.reaction %} · {{ a.reaction }}{% endif %}
+        </li>
+        {% endfor %}
+      </ul>
+      {% else %}<div class="empty">None documented</div>{% endif %}
+    </div>
+  </section>
+
+  <section class="s">
+    <h2>Objective</h2>
+    <div class="field">
+      <div class="label">Vitals</div>
+      <div class="vitals">
+        {% if objective.vitals.blood_pressure %}<div class="vital"><div class="label">BP</div><div class="value">{{ objective.vitals.blood_pressure }}</div></div>{% endif %}
+        {% if objective.vitals.heart_rate_bpm is not none %}<div class="vital"><div class="label">HR</div><div class="value">{{ objective.vitals.heart_rate_bpm }} <span class="unit">bpm</span></div></div>{% endif %}
+        {% if objective.vitals.respiratory_rate is not none %}<div class="vital"><div class="label">RR</div><div class="value">{{ objective.vitals.respiratory_rate }} <span class="unit">/min</span></div></div>{% endif %}
+        {% if objective.vitals.temperature_c is not none %}<div class="vital"><div class="label">Temp</div><div class="value">{{ "%.1f"|format(objective.vitals.temperature_c) }} <span class="unit">°C</span></div></div>{% endif %}
+        {% if objective.vitals.spo2_percent is not none %}<div class="vital"><div class="label">SpO₂</div><div class="value">{{ objective.vitals.spo2_percent }}<span class="unit">%</span></div></div>{% endif %}
+        {% if objective.vitals.weight_kg is not none %}<div class="vital"><div class="label">Wt</div><div class="value">{{ "%.1f"|format(objective.vitals.weight_kg) }} <span class="unit">kg</span></div></div>{% endif %}
+        {% if objective.vitals.height_cm is not none %}<div class="vital"><div class="label">Ht</div><div class="value">{{ "%.0f"|format(objective.vitals.height_cm) }} <span class="unit">cm</span></div></div>{% endif %}
+        {% if objective.vitals.pain_scale_0_10 is not none %}<div class="vital"><div class="label">Pain</div><div class="value">{{ objective.vitals.pain_scale_0_10 }}<span class="unit">/10</span></div></div>{% endif %}
+      </div>
+    </div>
+    {% if objective.physical_exam %}
+    <div class="field">
+      <div class="label">Physical exam</div>
+      <div class="value">{{ objective.physical_exam }}</div>
+    </div>
+    {% endif %}
+    <div class="field">
+      <div class="label">Findings</div>
+      {% if objective.findings %}
+      <ul class="bullets">{% for f in objective.findings %}<li>{{ f }}</li>{% endfor %}</ul>
+      {% else %}<div class="empty">— not documented</div>{% endif %}
+    </div>
+    {% if objective.labs_reviewed %}
+    <div class="field">
+      <div class="label">Labs reviewed</div>
+      <ul class="bullets">{% for l in objective.labs_reviewed %}<li>{{ l }}</li>{% endfor %}</ul>
+    </div>
+    {% endif %}
+  </section>
+
+  <section class="s">
+    <h2>Assessment</h2>
+    <div class="field">
+      <div class="label">Impressions</div>
+      {% if assessment.impressions %}
+      <ul class="bullets">{% for i in assessment.impressions %}<li>{{ i }}</li>{% endfor %}</ul>
+      {% else %}<div class="empty">— not documented</div>{% endif %}
+    </div>
+    <div class="field">
+      <div class="label">Diagnoses</div>
+      {% if assessment.diagnoses %}
+      <ul class="bullets">{% for d in assessment.diagnoses %}<li>{{ d }}</li>{% endfor %}</ul>
+      {% else %}<div class="empty">— not documented</div>{% endif %}
+    </div>
+  </section>
+
+  <section class="s">
+    <h2>Plan</h2>
+    <div class="field">
+      <div class="label">Medications</div>
+      {% if plan.medications %}
+      <table class="med-table">
+        <thead><tr><th>Name</th><th>Dose</th><th>Route</th><th>Frequency</th><th>Duration</th><th>Notes</th></tr></thead>
+        <tbody>
+          {% for m in plan.medications %}
+          <tr>
+            <td>{{ m.name }}</td><td>{{ m.dose or "" }}</td>
+            <td>{{ m.route or "" }}</td><td>{{ m.frequency or "" }}</td>
+            <td>{{ m.duration or "" }}</td><td>{{ m.notes or "" }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+      {% else %}<div class="empty">— not documented</div>{% endif %}
+    </div>
+    {% if plan.tests_ordered %}
+    <div class="field">
+      <div class="label">Tests ordered</div>
+      <ul class="bullets">{% for t in plan.tests_ordered %}<li>{{ t }}</li>{% endfor %}</ul>
+    </div>
+    {% endif %}
+    {% if plan.procedures %}
+    <div class="field">
+      <div class="label">Procedures</div>
+      <ul class="bullets">{% for p in plan.procedures %}<li>{{ p }}</li>{% endfor %}</ul>
+    </div>
+    {% endif %}
+    {% if plan.referrals %}
+    <div class="field">
+      <div class="label">Referrals</div>
+      <ul class="bullets">{% for r in plan.referrals %}<li>{{ r }}</li>{% endfor %}</ul>
+    </div>
+    {% endif %}
+    {% if plan.follow_up %}
+    <div class="field">
+      <div class="label">Follow-up</div>
+      <div class="value">{{ plan.follow_up }}</div>
+    </div>
+    {% endif %}
+    {% if plan.patient_education %}
+    <div class="field">
+      <div class="label">Patient education</div>
+      <div class="value">{{ plan.patient_education }}</div>
+    </div>
+    {% endif %}
+  </section>
+
+  <div class="signature">
+    <div>
+      Clinician: <strong>{{ doctor.display_name }}{% if doctor.credentials %}, {{ doctor.credentials }}{% endif %}</strong>
+    </div>
+    <div>Signature: ______________________________</div>
+  </div>
+
+  <div class="disclaimer">
+    Draft assistive tool · review and sign every note before clinical use.
+  </div>
+
+  {% if transcript %}
+  <section class="transcript">
+    <h2>Verbatim transcript</h2>
+    <p>{{ transcript }}</p>
+  </section>
+  {% endif %}
+</body>
+</html>

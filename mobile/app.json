@@ -1,0 +1,46 @@
+{
+  "expo": {
+    "name": "SoapNotesAi",
+    "slug": "soapnotesai",
+    "version": "0.1.0",
+    "orientation": "portrait",
+    "scheme": "soapnotesai",
+    "userInterfaceStyle": "automatic",
+    "newArchEnabled": true,
+    "ios": {
+      "supportsTablet": false,
+      "bundleIdentifier": "com.soapnotesai.app",
+      "infoPlist": {
+        "NSMicrophoneUsageDescription": "SoapNotesAi records your dictation to generate SOAP notes. Audio is sent only to the services you have configured."
+      }
+    },
+    "android": {
+      "package": "com.soapnotesai.app",
+      "permissions": [
+        "RECORD_AUDIO"
+      ],
+      "adaptiveIcon": {
+        "backgroundColor": "#ffffff"
+      }
+    },
+    "web": {
+      "bundler": "metro",
+      "output": "static"
+    },
+    "plugins": [
+      "expo-router",
+      "expo-asset",
+      [
+        "expo-audio",
+        {
+          "microphonePermission": "SoapNotesAi records your dictation to generate SOAP notes."
+        }
+      ],
+      "expo-web-browser",
+      "expo-font"
+    ],
+    "experiments": {
+      "typedRoutes": true
+    }
+  }
+}

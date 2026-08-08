@@ -1,0 +1,25 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: backend-config
+  namespace: soapnotesai
+data:
+  # Non-secret env. Values here are visible to anyone with cluster read access.
+  APP_ENV: "production"
+  LOG_LEVEL: "INFO"
+
+  FIREBASE_PROJECT_ID: "soapnotesai-dev-f7e79"
+  FIREBASE_STORAGE_BUCKET: "soapnotesai-dev-f7e79.firebasestorage.app"
+
+  VERTEX_PROJECT_ID: "project-72f9077d-3f41-4022-9b4"
+  VERTEX_LOCATION: "us-central1"
+  VERTEX_MODEL: "gemini-2.5-flash"
+
+  AUDIO_TO_SOAP_PROVIDER: "vertex_gemini"
+
+  MAX_UPLOAD_BYTES: "104857600"
+  MAX_AUDIO_DURATION_MS: "540000"
+
+  # CORS — list every domain the mobile build will originate from.
+  # For Expo Go dev keep localhost; for production builds, add your real domain.
+  CORS_ALLOW_ORIGINS: "http://localhost:8081,http://localhost:19006"

@@ -1,0 +1,73 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function isAuthed() {
+      return request.auth != null;
+    }
+
+    function orgMatch(oid) {
+      return isAuthed() && request.auth.token.org_id == oid;
+    }
+
+    function activeClinic(oid, cid) {
+      return orgMatch(oid) && request.auth.token.active_clinic_id == cid;
+    }
+
+    function isOrgOwner() {
+      return isAuthed() && request.auth.token.role == 'owner';
+    }
+
+    // ─── Global user profiles ──────────────────────────────────────
+    // One doc per Firebase user at users/{uid} with their memberships.
+    // Writes happen through the backend (Admin SDK); clients read their own.
+    match /users/{uid} {
+      allow read: if isAuthed() && request.auth.uid == uid;
+      allow write: if false;
+    }
+
+    // ─── Organizations ─────────────────────────────────────────────
+    match /organizations/{orgId} {
+      allow read: if orgMatch(orgId);
+      allow write: if false; // backend-only via Admin SDK
+
+      match /clinics/{clinicId} {
+        // Any org member can read clinics in their org (clinic switcher).
+        allow read: if orgMatch(orgId);
+        allow write: if false;
+
+        match /doctors/{doctorUid} {
+          allow read: if orgMatch(orgId);
+          // A doctor can update their own clinic-specific profile.
+          allow write: if activeClinic(orgId, clinicId)
+                      && request.auth.uid == doctorUid;
+        }
+
+        match /patients/{patientId} {
+          allow read, write: if activeClinic(orgId, clinicId);
+
+          match /recordings/{recordingId} {
+            allow read, write: if activeClinic(orgId, clinicId);
+          }
+        }
+
+        // Clinic-level audit: org owner only; writes via backend.
+        match /audit/{eventId} {
+          allow read:  if orgMatch(orgId) && isOrgOwner();
+          allow write: if false;
+        }
+      }
+
+      // Org-level audit (billing, admin actions)
+      match /audit/{eventId} {
+        allow read:  if orgMatch(orgId) && isOrgOwner();
+        allow write: if false;
+      }
+
+      // Invite codes for joining the org
+      match /invites/{code} {
+        allow read, write: if orgMatch(orgId) && isOrgOwner();
+      }
+    }
+  }
+}
