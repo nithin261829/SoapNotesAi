@@ -1,5 +1,5 @@
-// Sign-in — light "sky" design (reference: Morva Labs / dribbble 24494696).
-// Fixed light palette by design: this screen keeps one look in both themes.
+// Sign-in — "sky" design (reference: Morva Labs / dribbble 24494696),
+// theme-aware: day sky in light mode, deep night sky in dark mode.
 import {
   createUserWithEmailAndPassword,
   type AuthError,
@@ -9,7 +9,7 @@ import {
 } from 'firebase/auth';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Feather } from '@expo/vector-icons';
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   Image,
@@ -26,12 +26,13 @@ import {
 import { requestPhoneLoginOtp, verifyPhoneLoginOtp } from '@/api/otp';
 import { firebaseAuth } from '@/auth/firebase';
 import { useGoogleSignIn } from '@/auth/useGoogleSignIn';
+import { useTheme } from '@/theme/ThemeContext';
 
 type Mode = 'signin' | 'signup';
 type Field = 'email' | 'password' | 'phone' | 'otp';
 
-// ─── Fixed light palette (deliberate single look) ──────────────────
-const P = {
+// ─── Palettes: day sky (light) and night sky (dark) ────────────────
+const LIGHT_P = {
   skyTop: '#c9dff5',
   skyMid: '#e6f0fa',
   skyBottom: '#f7fafd',
@@ -45,8 +46,37 @@ const P = {
   focus: '#0f172a',
   danger: '#c2413b',
   dangerSoft: '#fdf0ef',
+  dangerLine: '#f2cfcd',
   okSoft: '#ecf7f0',
+  okLine: '#cfe8d8',
+  cta: '#0f172a',
+  ctaLabel: '#FFFFFF',
+  shadow: '#31537a',
 };
+
+const DARK_P: typeof LIGHT_P = {
+  skyTop: '#101c30',
+  skyMid: '#0d1626',
+  skyBottom: '#090e18',
+  card: '#141c2b',
+  ink: '#f2f5fa',
+  inkSoft: '#c6d0de',
+  gray: '#8b99ae',
+  grayLight: '#5f6e84',
+  line: 'rgba(255,255,255,0.10)',
+  fill: 'rgba(255,255,255,0.05)',
+  focus: '#8fb4e3',
+  danger: '#e07b76',
+  dangerSoft: 'rgba(224,123,118,0.12)',
+  dangerLine: 'rgba(224,123,118,0.35)',
+  okSoft: 'rgba(94,190,131,0.12)',
+  okLine: 'rgba(94,190,131,0.35)',
+  cta: '#f2f5fa',
+  ctaLabel: '#0f172a',
+  shadow: '#000000',
+};
+
+type Palette = typeof LIGHT_P;
 
 const TRUST_MARKERS = [
   { icon: 'mic', label: 'Voice → SOAP in seconds' },
@@ -55,6 +85,9 @@ const TRUST_MARKERS = [
 ] as const;
 
 export default function SignInScreen() {
+  const { isDark } = useTheme();
+  const P = isDark ? DARK_P : LIGHT_P;
+  const styles = useMemo(() => makeStyles(P), [P]);
   const google = useGoogleSignIn();
   const [mode, setMode] = useState<Mode>('signin');
   const [email, setEmail] = useState('');
@@ -275,7 +308,7 @@ export default function SignInScreen() {
                   ]}
                 >
                   {submitting ? (
-                    <ActivityIndicator color="#FFFFFF" />
+                    <ActivityIndicator color={P.ctaLabel} />
                   ) : (
                     <Text style={styles.primaryBtnLabel}>
                       {otpSentTo ? 'Verify & Sign In' : 'Get OTP'}
@@ -382,7 +415,7 @@ export default function SignInScreen() {
                   ]}
                 >
                   {submitting ? (
-                    <ActivityIndicator color="#FFFFFF" />
+                    <ActivityIndicator color={P.ctaLabel} />
                   ) : (
                     <Text style={styles.primaryBtnLabel}>
                       {mode === 'signin' ? 'Get Started' : 'Create Account'}
@@ -496,7 +529,7 @@ function humanizeAuthError(e: unknown): string {
   }
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (P: Palette) => StyleSheet.create({
   root: { flex: 1, backgroundColor: P.skyBottom },
   container: {
     flexGrow: 1,
@@ -509,7 +542,7 @@ const styles = StyleSheet.create({
 
   brandRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },
   brandLogo: { width: 86, height: 38 },
-  brandDivider: { width: 1, height: 30, backgroundColor: 'rgba(15,23,42,0.15)' },
+  brandDivider: { width: 1, height: 30, backgroundColor: P.line },
   brandTitle: {
     fontSize: 17,
     fontWeight: '800',
@@ -535,7 +568,7 @@ const styles = StyleSheet.create({
     paddingVertical: 24,
     alignItems: 'stretch',
     gap: 12,
-    shadowColor: '#31537a',
+    shadowColor: P.shadow,
     shadowOffset: { width: 0, height: 18 },
     shadowOpacity: 0.16,
     shadowRadius: 34,
@@ -551,7 +584,7 @@ const styles = StyleSheet.create({
     borderColor: P.line,
     alignItems: 'center',
     justifyContent: 'center',
-    shadowColor: '#31537a',
+    shadowColor: P.shadow,
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.1,
     shadowRadius: 8,
@@ -590,7 +623,7 @@ const styles = StyleSheet.create({
   },
   methodBtnActive: {
     backgroundColor: P.card,
-    shadowColor: '#31537a',
+    shadowColor: P.shadow,
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.12,
     shadowRadius: 4,
@@ -627,7 +660,7 @@ const styles = StyleSheet.create({
   errorBox: {
     backgroundColor: P.dangerSoft,
     borderWidth: 1,
-    borderColor: '#f2cfcd',
+    borderColor: P.dangerLine,
     borderRadius: 10,
     padding: 10,
   },
@@ -635,7 +668,7 @@ const styles = StyleSheet.create({
   resetBox: {
     backgroundColor: P.okSoft,
     borderWidth: 1,
-    borderColor: '#cfe8d8',
+    borderColor: P.okLine,
     borderRadius: 10,
     padding: 10,
   },
@@ -644,12 +677,12 @@ const styles = StyleSheet.create({
   primaryBtn: {
     height: 46,
     borderRadius: 12,
-    backgroundColor: P.ink,
+    backgroundColor: P.cta,
     alignItems: 'center',
     justifyContent: 'center',
     marginTop: 2,
   },
-  primaryBtnLabel: { color: '#FFFFFF', fontSize: 14, fontWeight: '700', letterSpacing: 0.2 },
+  primaryBtnLabel: { color: P.ctaLabel, fontSize: 14, fontWeight: '700', letterSpacing: 0.2 },
 
   dividerRow: { flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 2 },
   dividerLine: { flex: 1, height: 1, backgroundColor: P.line },
