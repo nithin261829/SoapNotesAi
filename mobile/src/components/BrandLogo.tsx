@@ -10,22 +10,20 @@ const LOGO_ASPECT = 1536 / 463; // width / height ≈ 3.32
 interface Props {
   /** Height in points. Width auto-scales to preserve aspect ratio. Default 32. */
   height?: number;
+  /** Horizontal alignment within its row. Default 'right'. */
+  align?: 'left' | 'right';
 }
 
-export function BrandLogo({ height = 32 }: Props) {
+export function BrandLogo({ height = 32, align = 'right' }: Props) {
   const width = Math.round(height * LOGO_ASPECT);
   return (
-    <View>
+    <View style={{ alignItems: align === 'right' ? 'flex-end' : 'flex-start' }}>
       <Image
         source={LOGO}
-        style={[styles.img, { height, width }]}
+        style={{ height, width }}
         resizeMode="contain"
         accessibilityLabel="SoapNotesAi"
       />
     </View>
   );
 }
-
-const styles = StyleSheet.create({
-  img: {},
-});
