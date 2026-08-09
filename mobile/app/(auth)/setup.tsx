@@ -198,7 +198,7 @@ const makeStyles = (c: ThemeColors) => StyleSheet.create({
   container: {
     flexGrow: 1,
     paddingHorizontal: space.lg,
-    paddingTop: space.xxl + space.lg,
+    paddingTop: space.xxl * 2 + space.md,
     paddingBottom: space.xxl,
     gap: space.lg,
   },
