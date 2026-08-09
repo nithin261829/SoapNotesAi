@@ -69,6 +69,21 @@ function authHeaders(idToken: string): Record<string, string> {
   };
 }
 
+export interface UpdateProfileParams {
+  display_name?: string;
+  credentials?: string;
+  phone?: string;
+}
+
+export async function updateMe(idToken: string, params: UpdateProfileParams): Promise<MeResponse> {
+  const res = await fetch(`${BASE_URL}/accounts/me`, {
+    method: 'PATCH',
+    headers: authHeaders(idToken),
+    body: JSON.stringify(params),
+  });
+  return jsonOrThrow<MeResponse>(res);
+}
+
 export async function getMe(idToken: string): Promise<MeResponse | null> {
   const res = await fetch(`${BASE_URL}/accounts/me`, { headers: authHeaders(idToken) });
   if (res.status === 404) return null; // user not provisioned yet

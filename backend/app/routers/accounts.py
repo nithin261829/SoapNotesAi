@@ -311,6 +311,34 @@ def signup_invite(code: str, body: JoinInviteRequest, user: CurrentUserDep) -> U
     return profile
 
 
+class UpdateProfileRequest(BaseModel):
+    display_name: Optional[str] = Field(None, max_length=120)
+    credentials: Optional[str] = Field(None, max_length=40)
+    phone: Optional[str] = Field(None, max_length=20)
+
+
+@router.patch("/me", response_model=MeResponse)
+def update_me(body: UpdateProfileRequest, user: TenantUserDep) -> MeResponse:
+    """A doctor edits their own profile (name, credentials, phone)."""
+    db = get_db()
+    ref = db.collection("users").document(user.uid)
+    snap = ref.get()
+    if not snap.exists or not (snap.to_dict() or {}).get("org_id"):
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="user_not_provisioned")
+
+    patch: dict[str, object] = {"updated_at": utc_now()}
+    if body.display_name is not None:
+        patch["display_name"] = _clean_display_name(body.display_name.strip()) or None
+    if body.credentials is not None:
+        patch["credentials"] = body.credentials.strip() or None
+    if body.phone is not None:
+        patch["phone"] = body.phone.strip() or None
+    ref.update(patch)
+
+    logger.info("profile_updated uid=%s", user.uid)
+    return me(user)
+
+
 @router.post("/push-token", status_code=status.HTTP_204_NO_CONTENT)
 def register_push_token(body: PushTokenRequest, user: TenantUserDep) -> None:
     """Store the device push token for follow-up reminders."""
