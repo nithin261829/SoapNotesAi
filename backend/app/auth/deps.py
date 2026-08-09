@@ -27,6 +27,7 @@ class UserContext:
     """
     uid: str
     email: Optional[str]
+    phone: Optional[str]
     org_id: Optional[str]
     active_clinic_id: Optional[str]
     role: Optional[str]
@@ -74,9 +75,11 @@ def current_user(
         role = None
 
     email = claims.get("email")
+    phone = claims.get("phone_number")
     return UserContext(
         uid=uid,
         email=email if isinstance(email, str) else None,
+        phone=phone if isinstance(phone, str) else None,
         org_id=_str_or_none(claims.get("org_id")),
         active_clinic_id=_str_or_none(claims.get("active_clinic_id")),
         role=role,

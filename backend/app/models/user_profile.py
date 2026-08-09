@@ -29,7 +29,9 @@ class UserProfile(FirestoreModel):
     (and `role` for the active clinic) so Firestore + Storage rules can enforce
     tenancy without an extra read.
     """
-    email: EmailStr
+    # Either email or phone identifies the account (phone-OTP users have no
+    # email); at least one is always present.
+    email: Optional[EmailStr] = None
     display_name: Optional[str] = None
     credentials: Optional[str] = None
     # Permanent unique doctor registration id (e.g. "SNA-00042"), assigned

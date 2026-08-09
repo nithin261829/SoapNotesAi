@@ -169,10 +169,10 @@ def signup_org(body: CreateOrgRequest, user: CurrentUserDep) -> UserProfile:
     db = get_db()
     _require_unprovisioned(user, db)
 
-    if not user.email:
+    if not user.email and not user.phone:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="email_required_on_token",
+            detail="identity_required_on_token",
         )
 
     org_id = _slugify(body.org_name, fallback="org")
@@ -194,6 +194,7 @@ def signup_org(body: CreateOrgRequest, user: CurrentUserDep) -> UserProfile:
     )
     profile = UserProfile(
         email=user.email,
+        phone=user.phone,
         display_name=body.display_name,
         credentials=body.credentials,
         registration_id=_next_registration_id(db),
@@ -236,10 +237,10 @@ def signup_invite(code: str, body: JoinInviteRequest, user: CurrentUserDep) -> U
     db = get_db()
     _require_unprovisioned(user, db)
 
-    if not user.email:
+    if not user.email and not user.phone:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="email_required_on_token",
+            detail="identity_required_on_token",
         )
 
     invite_ref = db.collection("invites").document(code)
@@ -271,6 +272,7 @@ def signup_invite(code: str, body: JoinInviteRequest, user: CurrentUserDep) -> U
     now = utc_now()
     profile = UserProfile(
         email=user.email,
+        phone=user.phone,
         display_name=body.display_name,
         credentials=body.credentials,
         registration_id=_next_registration_id(db),

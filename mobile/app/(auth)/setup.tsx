@@ -180,6 +180,7 @@ function humanizeError(e: unknown): string {
         return 'That invite has already been used.';
       case 'invite_expired':
         return 'That invite has expired. Ask your admin for a new one.';
+      case 'identity_required_on_token':
       case 'email_required_on_token':
         return 'Your sign-in is missing an email. Sign out and sign back in.';
       default:

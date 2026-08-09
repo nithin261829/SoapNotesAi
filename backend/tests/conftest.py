@@ -220,6 +220,7 @@ def make_user(
     return UserContext(
         uid=uid,
         email="owner@example.com",
+        phone=None,
         org_id=org_id,
         active_clinic_id=clinic_id,
         role=role,
