@@ -2,6 +2,7 @@ import { type AuthError } from 'firebase/auth';
 import { useState } from 'react';
 import {
   ActivityIndicator,
+  Image,
   KeyboardAvoidingView,
   Platform,
   Pressable,
@@ -15,15 +16,13 @@ import {
 import { AccountsError } from '@/api/accounts';
 import { useAuth } from '@/auth/AuthContext';
 import { useStyles, useThemeColors } from '@/theme/ThemeContext';
+import { fonts } from '@/theme/fonts';
 import { font, radii, space, type ThemeColors } from '@/theme/tokens';
-
-type Mode = 'create' | 'join';
 
 export default function SetupScreen() {
   const c = useThemeColors();
   const styles = useStyles(makeStyles);
-  const { user, provisionOrg, joinWithInvite, signOut } = useAuth();
-  const [mode, setMode] = useState<Mode>('create');
+  const { user, provisionOrg, signOut } = useAuth();
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -33,12 +32,9 @@ export default function SetupScreen() {
   const [displayName, setDisplayName] = useState('');
   const [credentials, setCredentials] = useState('');
 
-  // Join-invite fields
-  const [inviteCode, setInviteCode] = useState('');
 
   const createDisabled =
     submitting || orgName.trim().length < 1 || clinicName.trim().length < 1;
-  const joinDisabled = submitting || inviteCode.trim().length < 4;
 
   const onCreate = async () => {
     if (createDisabled) return;
@@ -59,23 +55,6 @@ export default function SetupScreen() {
     }
   };
 
-  const onJoin = async () => {
-    if (joinDisabled) return;
-    setError(null);
-    setSubmitting(true);
-    try {
-      await joinWithInvite({
-        code: inviteCode.trim(),
-        displayName: displayName.trim() || undefined,
-        credentials: credentials.trim() || undefined,
-      });
-    } catch (e) {
-      setError(humanizeError(e));
-    } finally {
-      setSubmitting(false);
-    }
-  };
-
   return (
     <KeyboardAvoidingView
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
@@ -88,73 +67,30 @@ export default function SetupScreen() {
       >
         {/* Hero */}
         <View style={styles.hero}>
-          <View style={styles.brandRow}>
-            <View style={styles.brandMark}>
-              <Text style={styles.brandMarkText}>S</Text>
-            </View>
-            <View>
-              <Text style={styles.brandEyebrow}>{user?.email ?? 'New account'}</Text>
-              <Text style={styles.brandSubeyebrow}>One last step</Text>
-            </View>
+          <View style={styles.lockupRow}>
+            <Text style={styles.wordmark}>SoapNotesAi</Text>
+            <View style={styles.lockupDivider} />
+            <Image
+              source={require('../../assets/logo.png')}
+              style={styles.lockupLogo}
+              resizeMode="contain"
+              accessibilityLabel="SoapNotesAi"
+            />
           </View>
+          <Text style={styles.accountEyebrow}>{user?.email ?? 'New account'} · one last step</Text>
           <Text style={styles.title}>Set up your account.</Text>
           <Text style={styles.subtitle}>
-            Create a new organization or join one with an invite code from your admin.
+            Name your organization and clinic — you can add more clinics later.
           </Text>
-        </View>
-
-        {/* Mode tabs */}
-        <View style={styles.tabsRow}>
-          <Pressable
-            onPress={() => {
-              setMode('create');
-              setError(null);
-            }}
-            disabled={submitting}
-            style={[styles.tab, mode === 'create' && styles.tabSelected]}
-          >
-            <Text style={[styles.tabText, mode === 'create' && styles.tabTextSelected]}>
-              Create new
-            </Text>
-          </Pressable>
-          <Pressable
-            onPress={() => {
-              setMode('join');
-              setError(null);
-            }}
-            disabled={submitting}
-            style={[styles.tab, mode === 'join' && styles.tabSelected]}
-          >
-            <Text style={[styles.tabText, mode === 'join' && styles.tabTextSelected]}>
-              Join with code
-            </Text>
-          </Pressable>
         </View>
 
         {/* Form card */}
         <View style={styles.card}>
-          {mode === 'create' ? (
-            <>
-              <View style={styles.tagPill}>
-                <Text style={styles.tagPillText}>Organization</Text>
-              </View>
-              <Field label="Organization name" value={orgName} onChangeText={setOrgName} placeholder="e.g. Acme Health Group" />
-              <Field label="Clinic name" value={clinicName} onChangeText={setClinicName} placeholder="e.g. Downtown Family Practice" />
-            </>
-          ) : (
-            <>
-              <View style={styles.tagPill}>
-                <Text style={styles.tagPillText}>Invite</Text>
-              </View>
-              <Field
-                label="Invite code"
-                value={inviteCode}
-                onChangeText={setInviteCode}
-                placeholder="from your admin"
-                autoCapitalize="characters"
-              />
-            </>
-          )}
+          <View style={styles.tagPill}>
+            <Text style={styles.tagPillText}>Organization</Text>
+          </View>
+          <Field label="Organization name" value={orgName} onChangeText={setOrgName} placeholder="e.g. Acme Health Group" />
+          <Field label="Clinic name" value={clinicName} onChangeText={setClinicName} placeholder="e.g. Downtown Family Practice" />
 
           <View style={styles.divider} />
 
@@ -171,26 +107,17 @@ export default function SetupScreen() {
           ) : null}
 
           <Pressable
-            disabled={mode === 'create' ? createDisabled : joinDisabled}
-            onPress={() => void (mode === 'create' ? onCreate() : onJoin())}
+            disabled={createDisabled}
+            onPress={() => void onCreate()}
             style={({ pressed }) => [
               styles.primaryBtn,
-              {
-                opacity:
-                  (mode === 'create' ? createDisabled : joinDisabled)
-                    ? 0.45
-                    : pressed
-                      ? 0.85
-                      : 1,
-              },
+              { opacity: createDisabled ? 0.45 : pressed ? 0.85 : 1 },
             ]}
           >
             {submitting ? (
               <ActivityIndicator color={c.textOnAccent} />
             ) : (
-              <Text style={styles.primaryBtnLabel}>
-                {mode === 'create' ? 'CREATE ORGANIZATION →' : 'JOIN ORGANIZATION →'}
-              </Text>
+              <Text style={styles.primaryBtnLabel}>CREATE ORGANIZATION →</Text>
             )}
           </Pressable>
         </View>
@@ -274,6 +201,17 @@ const makeStyles = (c: ThemeColors) => StyleSheet.create({
     paddingTop: space.xxl + space.lg,
     paddingBottom: space.xxl,
     gap: space.lg,
+  },
+  lockupRow: { flexDirection: 'row', alignItems: 'center', gap: space.md },
+  wordmark: { fontFamily: fonts.brand, fontSize: 26, color: c.text, letterSpacing: -0.5 },
+  lockupDivider: { width: 1, height: 24, backgroundColor: c.borderStrong },
+  lockupLogo: { width: 84, height: 34 },
+  accountEyebrow: {
+    fontFamily: fonts.displayMedium,
+    fontSize: font.size.xs,
+    color: c.textMuted,
+    letterSpacing: 0.4,
+    marginTop: space.sm,
   },
   hero: { gap: space.md },
   brandRow: { flexDirection: 'row', alignItems: 'center', gap: space.md },
