@@ -99,14 +99,20 @@ def _next_registration_id(db: gcf.Client) -> str:
 
 
 def _require_unprovisioned(user: UserContext, db: gcf.Client) -> None:
-    """Reject if the user has already been provisioned into an org."""
+    """Reject only if the user is already in an org.
+
+    Phone-OTP login (and OTP verification) create a partial users/{uid} doc
+    holding just `phone` / `otp_verified_until` BEFORE org setup — so mere
+    existence of the doc does NOT mean provisioned. Only an `org_id` on the
+    doc (or in the token claims) counts.
+    """
     if user.org_id:
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
             detail="already_provisioned",
         )
     existing = db.collection("users").document(user.uid).get()
-    if existing.exists:
+    if existing.exists and (existing.to_dict() or {}).get("org_id"):
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
             detail="already_provisioned",
