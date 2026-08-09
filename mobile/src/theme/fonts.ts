@@ -19,6 +19,7 @@ import {
   PlayfairDisplay_700Bold_Italic,
 } from '@expo-google-fonts/playfair-display';
 import { Saira_600SemiBold, Saira_700Bold } from '@expo-google-fonts/saira';
+import { Gelasio_700Bold } from '@expo-google-fonts/gelasio';
 import { useFonts } from 'expo-font';
 
 export const fonts = {
@@ -29,7 +30,8 @@ export const fonts = {
   displayExtra: 'Inter_800ExtraBold',
   serifItalic: 'PlayfairDisplay_400Regular_Italic',
   serifBoldItalic: 'PlayfairDisplay_700Bold_Italic',
-  brand: 'Saira_700Bold',
+  brand: 'Gelasio_700Bold',
+  brandAlt: 'Saira_700Bold',
   brandSemi: 'Saira_600SemiBold',
 } as const;
 
@@ -44,6 +46,7 @@ export function useAppFonts(): boolean {
     PlayfairDisplay_700Bold_Italic,
     Saira_600SemiBold,
     Saira_700Bold,
+    Gelasio_700Bold,
   });
   return loaded;
 }
