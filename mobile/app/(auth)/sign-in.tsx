@@ -513,7 +513,7 @@ const makeStyles = (c: ThemeColors) => StyleSheet.create({
     letterSpacing: 0.4,
   },
   poweredDivider: { width: 1, height: 26, backgroundColor: c.borderStrong },
-  poweredLogo: { width: 84, height: 34 },
+  poweredLogo: { width: 108, height: 44 },
   lockupRow: { flexDirection: 'row', alignItems: 'center', gap: space.md },
   partnerCaption: {
     fontFamily: fonts.displayMedium,
