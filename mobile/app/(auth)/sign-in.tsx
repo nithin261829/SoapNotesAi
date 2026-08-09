@@ -123,18 +123,11 @@ export default function SignInScreen() {
       >
         {/* Header — professional SaaS pattern: small brand, modest heading */}
         <View style={styles.header}>
-          <Image
-            source={require('../../assets/logo.png')}
-            style={styles.brandLogo}
-            resizeMode="contain"
-            accessibilityLabel="SoapNotesAi"
-          />
+          <Text style={styles.wordmark}>SoapNotesAi</Text>
           <Text style={styles.headerTitle}>
-            {mode === 'signin' ? 'Sign in to SoapNotesAi' : 'Create your SoapNotesAi account'}
+            {mode === 'signin' ? 'Sign in to your account' : 'Create your account'}
           </Text>
-          <Text style={styles.headerSub}>
-            Voice → SOAP notes for clinicians · Voice to SOAP notes
-          </Text>
+          <Text style={styles.headerSub}>Voice → SOAP notes for clinicians</Text>
         </View>
 
         {/* Method toggle: Email | Mobile OTP */}
@@ -383,6 +376,17 @@ export default function SignInScreen() {
         </View>
         ) : null}
 
+        <View style={styles.poweredRow}>
+          <Text style={styles.poweredText}>Voice to SOAP notes</Text>
+          <View style={styles.poweredDivider} />
+          <Image
+            source={require('../../assets/logo.png')}
+            style={styles.poweredLogo}
+            resizeMode="contain"
+            accessibilityLabel="SoapNotesAi"
+          />
+        </View>
+
         <Text style={styles.disclaimer}>
           Draft assistive tool · review and sign every note before clinical use.
         </Text>
@@ -450,9 +454,15 @@ const makeStyles = (c: ThemeColors) => StyleSheet.create({
     maxWidth: 460,
     alignSelf: 'center',
   },
+  wordmark: {
+    fontFamily: fonts.displayExtra,
+    fontSize: 34,
+    color: c.text,
+    letterSpacing: -1.2,
+  },
   headerTitle: {
     fontFamily: fonts.displayBold,
-    fontSize: 23,
+    fontSize: 17,
     color: c.text,
     letterSpacing: -0.5,
     textAlign: 'center',
@@ -465,6 +475,21 @@ const makeStyles = (c: ThemeColors) => StyleSheet.create({
     textAlign: 'center',
   },
   hero: { gap: space.sm, marginBottom: space.lg },
+  poweredRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: space.sm,
+    marginTop: space.md,
+  },
+  poweredText: {
+    fontFamily: fonts.displaySemi,
+    fontSize: font.size.xs,
+    color: c.textMuted,
+    letterSpacing: 0.4,
+  },
+  poweredDivider: { width: 1, height: 18, backgroundColor: c.border },
+  poweredLogo: { width: 64, height: 26 },
   brandRow: { flexDirection: 'row', alignItems: 'center', gap: space.md },
   brandLogo: { width: 96, height: 44 },
   brandMark: {
