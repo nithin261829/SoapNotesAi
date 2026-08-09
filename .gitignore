@@ -51,3 +51,4 @@ firebase/hosting-dist/
 backend/.env
 mobile/.env
 *firebase-adminsdk*.json
+mobile/android/app/google-services.json
