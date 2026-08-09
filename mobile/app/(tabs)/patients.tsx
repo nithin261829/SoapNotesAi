@@ -87,7 +87,7 @@ export default function PatientsScreen() {
   return (
     <View style={styles.container}>
       <ScrollView
-        contentContainerStyle={[styles.scroll, { paddingTop: insets.top + 12 }]}
+        contentContainerStyle={[styles.scroll, { paddingTop: insets.top + 8 }]}
         keyboardShouldPersistTaps="handled"
         refreshControl={
           <RefreshControl
@@ -101,11 +101,9 @@ export default function PatientsScreen() {
           />
         }
       >
-        <BrandLogo />
-
-        {/* Page title */}
-        <View style={{ marginBottom: space.sm, marginTop: space.sm }}>
+        <View style={styles.headerRow}>
           <Text style={styles.pageTitle}>Patients</Text>
+          <BrandLogo height={26} />
         </View>
 
         {/* Search + sort */}
@@ -456,6 +454,7 @@ function groupByLastSeen(
 
 const makeStyles = (c: ThemeColors) => StyleSheet.create({
   container: { flex: 1, backgroundColor: c.bg },
+  headerRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: space.sm },
   scroll: { padding: space.lg, gap: space.md, paddingBottom: 120 },
 
   pageTitle: {
