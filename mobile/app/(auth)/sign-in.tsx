@@ -454,7 +454,7 @@ const makeStyles = (c: ThemeColors) => StyleSheet.create({
     alignSelf: 'center',
   },
   wordmark: {
-    fontFamily: fonts.serifBoldItalic,
+    fontFamily: fonts.brand,
     fontSize: 34,
     color: c.text,
     letterSpacing: -0.5,
