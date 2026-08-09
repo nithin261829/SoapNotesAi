@@ -47,7 +47,11 @@ export function GreetingBanner() {
   const [dismissed, setDismissed] = useState(false);
 
   const displayName = profile?.profile.display_name ?? null;
-  const firstName = displayName?.trim().split(/\s+/)[0] ?? null;
+  // Skip a leading honorific so "Dr. Web Tester" doesn't render "Dr. Dr.".
+  const nameParts = displayName?.trim().split(/\s+/) ?? [];
+  const firstName =
+    (nameParts[0]?.replace(/\.$/, '').toLowerCase() === 'dr' ? nameParts[1] : nameParts[0]) ??
+    null;
   const greeting = greetingForHour(new Date().getHours());
 
   useEffect(() => {

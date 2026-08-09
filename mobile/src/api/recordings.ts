@@ -59,9 +59,13 @@ export async function generateSoapPdf(params: GeneratePdfParams): Promise<string
     }
     throw new UploadError(`pdf_failed_${res.status}`, res.status, code);
   }
-  // expo-file-system/legacy doesn't support writing arbitrary binary blobs from
-  // fetch, so encode the response as base64 and write that.
   const buf = await res.arrayBuffer();
+  // Web: trigger a normal browser download (native file APIs don't exist).
+  if (Platform.OS === 'web') {
+    return webDownloadBlob(buf, `soap_${Date.now()}.pdf`);
+  }
+  // Native: expo-file-system/legacy doesn't support writing arbitrary binary
+  // blobs from fetch, so encode the response as base64 and write that.
   const base64 = arrayBufferToBase64(buf);
   const dir = `${FileSystem.documentDirectory}pdfs/`;
   const info = await FileSystem.getInfoAsync(dir);
@@ -127,6 +131,9 @@ export async function downloadRecordingPdf(
     throw new UploadError(`pdf_failed_${res.status}`, res.status, code);
   }
   const buf = await res.arrayBuffer();
+  if (Platform.OS === 'web') {
+    return webDownloadBlob(buf, `soap_${recordingId}.pdf`);
+  }
   const base64 = arrayBufferToBase64(buf);
   const dir = `${FileSystem.documentDirectory}pdfs/`;
   const info = await FileSystem.getInfoAsync(dir);
@@ -139,6 +146,20 @@ export async function downloadRecordingPdf(
     encoding: FileSystem.EncodingType.Base64,
   });
   return fileUri;
+}
+
+
+function webDownloadBlob(buf: ArrayBuffer, filename: string): string {
+  const blob = new Blob([buf], { type: 'application/pdf' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 60_000);
+  return url;
 }
 
 function arrayBufferToBase64(buf: ArrayBuffer): string {

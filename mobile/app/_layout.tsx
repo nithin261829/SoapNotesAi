@@ -24,7 +24,9 @@ function AuthGate() {
 
     if (!user) {
       otpChecked.current = false;
-      if (!inAuthGroup) router.replace('/(auth)/sign-in');
+      // Redirect from anywhere that isn't the sign-in screen itself —
+      // including setup/otp, which are in the auth group (sign-out race).
+      if (!inAuthGroup || onSetup || onOtp) router.replace('/(auth)/sign-in');
       return;
     }
     if (needsProvisioning) {
