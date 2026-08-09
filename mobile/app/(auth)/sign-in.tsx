@@ -1,5 +1,4 @@
-// Sign-in — "sky" design (reference: Morva Labs / dribbble 24494696),
-// theme-aware: day sky in light mode, deep night sky in dark mode.
+// Sign-in — Instagram-style: flat, minimal, centered. Theme-aware.
 import {
   createUserWithEmailAndPassword,
   type AuthError,
@@ -7,7 +6,6 @@ import {
   signInWithCustomToken,
   signInWithEmailAndPassword,
 } from 'firebase/auth';
-import { LinearGradient } from 'expo-linear-gradient';
 import { Feather } from '@expo/vector-icons';
 import { useMemo, useState } from 'react';
 import {
@@ -31,58 +29,44 @@ import { useTheme } from '@/theme/ThemeContext';
 type Mode = 'signin' | 'signup';
 type Field = 'email' | 'password' | 'phone' | 'otp';
 
-// ─── Palettes: day sky (light) and night sky (dark) ────────────────
+// ─── Flat palettes (Instagram-plain) ───────────────────────────────
 const LIGHT_P = {
-  skyTop: '#c9dff5',
-  skyMid: '#e6f0fa',
-  skyBottom: '#f7fafd',
-  card: '#FFFFFF',
-  ink: '#0f172a',
-  inkSoft: '#3b4a63',
-  gray: '#6b7a90',
-  grayLight: '#93a1b5',
-  line: '#e4eaf2',
-  fill: '#f6f8fb',
-  focus: '#0f172a',
+  bg: '#fafafa',
+  box: '#ffffff',
+  ink: '#111418',
+  gray: '#737b83',
+  grayLight: '#a4acb4',
+  line: '#e2e5e8',
+  fill: '#f3f5f7',
+  focus: '#b9c1c9',
+  cta: '#111418',
+  ctaLabel: '#ffffff',
   danger: '#c2413b',
   dangerSoft: '#fdf0ef',
   dangerLine: '#f2cfcd',
-  okSoft: '#ecf7f0',
-  okLine: '#cfe8d8',
-  cta: '#0f172a',
-  ctaLabel: '#FFFFFF',
-  shadow: '#31537a',
+  okSoft: '#eef7f1',
+  okLine: '#d3e9db',
 };
 
 const DARK_P: typeof LIGHT_P = {
-  skyTop: '#101c30',
-  skyMid: '#0d1626',
-  skyBottom: '#090e18',
-  card: '#141c2b',
-  ink: '#f2f5fa',
-  inkSoft: '#c6d0de',
-  gray: '#8b99ae',
-  grayLight: '#5f6e84',
+  bg: '#0a0d10',
+  box: '#101418',
+  ink: '#f2f4f6',
+  gray: '#8f979f',
+  grayLight: '#5c646c',
   line: 'rgba(255,255,255,0.10)',
-  fill: 'rgba(255,255,255,0.05)',
-  focus: '#8fb4e3',
+  fill: 'rgba(255,255,255,0.06)',
+  focus: 'rgba(255,255,255,0.35)',
+  cta: '#f2f4f6',
+  ctaLabel: '#111418',
   danger: '#e07b76',
   dangerSoft: 'rgba(224,123,118,0.12)',
   dangerLine: 'rgba(224,123,118,0.35)',
   okSoft: 'rgba(94,190,131,0.12)',
   okLine: 'rgba(94,190,131,0.35)',
-  cta: '#f2f5fa',
-  ctaLabel: '#0f172a',
-  shadow: '#000000',
 };
 
 type Palette = typeof LIGHT_P;
-
-const TRUST_MARKERS = [
-  { icon: 'mic', label: 'Voice → SOAP in seconds' },
-  { icon: 'lock', label: 'Encrypted patient data' },
-  { icon: 'check-circle', label: 'Verified letterheads' },
-] as const;
 
 export default function SignInScreen() {
   const { isDark } = useTheme();
@@ -170,13 +154,6 @@ export default function SignInScreen() {
 
   const phonePrimaryDisabled = submitting || (otpSentTo ? otpCode.length < 6 : !phoneValid);
 
-  const cardTitle =
-    method === 'phone'
-      ? 'Sign in with mobile OTP'
-      : mode === 'signin'
-        ? 'Sign in with email'
-        : 'Create your account';
-
   const inputWrap = (field: Field) => [
     styles.inputWrap,
     focused === field && styles.inputWrapFocused,
@@ -184,10 +161,6 @@ export default function SignInScreen() {
 
   return (
     <View style={styles.root}>
-      <LinearGradient
-        colors={[P.skyTop, P.skyMid, P.skyBottom]}
-        style={StyleSheet.absoluteFill}
-      />
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
         style={{ flex: 1 }}
@@ -197,32 +170,18 @@ export default function SignInScreen() {
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
         >
-          {/* Brand lockup */}
-          <View style={styles.brandRow}>
+          <View style={styles.column}>
+            {/* Wordmark */}
             <Image
               source={require('../../assets/logo.png')}
-              style={styles.brandLogo}
+              style={styles.logo}
               resizeMode="contain"
               accessibilityLabel="SoapNotesAi"
             />
-            <View style={styles.brandDivider} />
-            <View>
-              <Text style={styles.brandTitle}>SoapNotesAi</Text>
-              <Text style={styles.brandEyebrow}>POWERED BY SOAPNOTESAI</Text>
-            </View>
-          </View>
+            <Text style={styles.wordmark}>SoapNotesAi</Text>
+            <Text style={styles.tagline}>Voice → SOAP notes for clinicians</Text>
 
-          {/* Floating card */}
-          <View style={styles.card}>
-            <View style={styles.cardIcon}>
-              <Feather name="log-in" size={16} color={P.ink} />
-            </View>
-            <Text style={styles.cardTitle}>{cardTitle}</Text>
-            <Text style={styles.cardSubtitle}>
-              Dictate the visit — the AI drafts the SOAP note, you review and sign.
-            </Text>
-
-            {/* Method toggle */}
+            {/* Method tabs */}
             <View style={styles.methodRow}>
               {(
                 [
@@ -236,21 +195,24 @@ export default function SignInScreen() {
                     setMethod(m.key);
                     setError(null);
                   }}
-                  style={[styles.methodBtn, method === m.key && styles.methodBtnActive]}
+                  style={styles.methodBtn}
+                  hitSlop={6}
                 >
                   <Text
                     style={[styles.methodText, method === m.key && styles.methodTextActive]}
                   >
                     {m.label}
                   </Text>
+                  <View
+                    style={[styles.methodUnderline, method === m.key && styles.methodUnderlineOn]}
+                  />
                 </Pressable>
               ))}
             </View>
 
             {method === 'phone' ? (
-              <>
+              <View style={styles.form}>
                 <View style={inputWrap('phone')}>
-                  <Feather name="phone" size={15} color={P.grayLight} />
                   <Text style={styles.phonePrefix}>+91</Text>
                   <TextInput
                     value={phone}
@@ -269,7 +231,6 @@ export default function SignInScreen() {
                 {otpSentTo ? (
                   <>
                     <View style={inputWrap('otp')}>
-                      <Feather name="key" size={15} color={P.grayLight} />
                       <TextInput
                         value={otpCode}
                         onChangeText={(t) => setOtpCode(t.replace(/\D/g, '').slice(0, 6))}
@@ -284,7 +245,7 @@ export default function SignInScreen() {
                         onBlur={() => setFocused(null)}
                       />
                     </View>
-                    <Text style={styles.otpHint}>
+                    <Text style={styles.hint}>
                       {otpChannel === 'dev_log'
                         ? 'Dev mode: SMS not configured yet — the code is on the backend console.'
                         : `Code sent to ${otpSentTo}.`}
@@ -304,14 +265,14 @@ export default function SignInScreen() {
                   onPress={() => void (otpSentTo ? onVerifyPhoneOtp() : onSendPhoneOtp())}
                   style={({ pressed }) => [
                     styles.primaryBtn,
-                    { opacity: phonePrimaryDisabled ? 0.4 : pressed ? 0.88 : 1 },
+                    { opacity: phonePrimaryDisabled ? 0.35 : pressed ? 0.85 : 1 },
                   ]}
                 >
                   {submitting ? (
                     <ActivityIndicator color={P.ctaLabel} />
                   ) : (
                     <Text style={styles.primaryBtnLabel}>
-                      {otpSentTo ? 'Verify & Sign In' : 'Get OTP'}
+                      {otpSentTo ? 'Verify & sign in' : 'Get OTP'}
                     </Text>
                   )}
                 </Pressable>
@@ -326,14 +287,13 @@ export default function SignInScreen() {
                     hitSlop={8}
                     style={{ alignSelf: 'center' }}
                   >
-                    <Text style={styles.linkText}>Change number / resend</Text>
+                    <Text style={styles.smallLink}>Change number / resend</Text>
                   </Pressable>
                 ) : null}
-              </>
+              </View>
             ) : (
-              <>
+              <View style={styles.form}>
                 <View style={inputWrap('email')}>
-                  <Feather name="mail" size={15} color={P.grayLight} />
                   <TextInput
                     value={email}
                     onChangeText={setEmail}
@@ -352,7 +312,6 @@ export default function SignInScreen() {
                 </View>
 
                 <View style={inputWrap('password')}>
-                  <Feather name="lock" size={15} color={P.grayLight} />
                   <TextInput
                     value={password}
                     onChangeText={setPassword}
@@ -369,25 +328,12 @@ export default function SignInScreen() {
                     onFocus={() => setFocused('password')}
                     onBlur={() => setFocused(null)}
                   />
-                  <Pressable onPress={() => setShowPassword((s) => !s)} hitSlop={8}>
-                    <Feather
-                      name={showPassword ? 'eye-off' : 'eye'}
-                      size={15}
-                      color={P.grayLight}
-                    />
-                  </Pressable>
+                  {password.length > 0 ? (
+                    <Pressable onPress={() => setShowPassword((s) => !s)} hitSlop={8}>
+                      <Text style={styles.showHide}>{showPassword ? 'Hide' : 'Show'}</Text>
+                    </Pressable>
+                  ) : null}
                 </View>
-
-                {mode === 'signin' ? (
-                  <Pressable
-                    accessibilityRole="link"
-                    onPress={() => void onForgotPassword()}
-                    hitSlop={8}
-                    style={{ alignSelf: 'flex-end' }}
-                  >
-                    <Text style={styles.forgotLink}>Forgot password?</Text>
-                  </Pressable>
-                ) : null}
 
                 {resetSent ? (
                   <View style={styles.resetBox}>
@@ -411,21 +357,21 @@ export default function SignInScreen() {
                   onPress={() => void onSubmit()}
                   style={({ pressed }) => [
                     styles.primaryBtn,
-                    { opacity: submitDisabled ? 0.4 : pressed ? 0.88 : 1 },
+                    { opacity: submitDisabled ? 0.35 : pressed ? 0.85 : 1 },
                   ]}
                 >
                   {submitting ? (
                     <ActivityIndicator color={P.ctaLabel} />
                   ) : (
                     <Text style={styles.primaryBtnLabel}>
-                      {mode === 'signin' ? 'Get Started' : 'Create Account'}
+                      {mode === 'signin' ? 'Log in' : 'Sign up'}
                     </Text>
                   )}
                 </Pressable>
 
                 <View style={styles.dividerRow}>
                   <View style={styles.dividerLine} />
-                  <Text style={styles.dividerText}>Or sign in with</Text>
+                  <Text style={styles.dividerText}>OR</Text>
                   <View style={styles.dividerLine} />
                 </View>
 
@@ -435,56 +381,61 @@ export default function SignInScreen() {
                   disabled={google.inProgress || submitting}
                   onPress={() => void google.signIn()}
                   style={({ pressed }) => [
-                    styles.googleBtn,
-                    { opacity: google.inProgress || submitting ? 0.5 : pressed ? 0.85 : 1 },
+                    styles.googleRow,
+                    { opacity: google.inProgress || submitting ? 0.5 : pressed ? 0.7 : 1 },
                   ]}
                 >
                   {google.inProgress ? (
                     <ActivityIndicator color={P.ink} />
                   ) : (
-                    <Text style={styles.googleG}>G</Text>
+                    <>
+                      <Text style={styles.googleG}>G</Text>
+                      <Text style={styles.googleLabel}>Continue with Google</Text>
+                    </>
                   )}
                 </Pressable>
                 {google.error ? <Text style={styles.googleError}>{google.error}</Text> : null}
-              </>
-            )}
-          </View>
 
-          {/* Below-card: mode toggle + trust markers + footer */}
-          {method === 'email' ? (
-            <View style={styles.toggleRow}>
-              <Text style={styles.toggleText}>
-                {mode === 'signin' ? 'New to SoapNotesAi?' : 'Already have an account?'}
-              </Text>
-              <Pressable
-                accessibilityRole="link"
-                onPress={() => {
-                  setMode((m) => (m === 'signin' ? 'signup' : 'signin'));
-                  setError(null);
-                }}
-                hitSlop={8}
-              >
-                <Text style={styles.toggleLink}>
-                  {mode === 'signin' ? 'Create one' : 'Sign in'}
-                </Text>
-              </Pressable>
-            </View>
-          ) : null}
-
-          <View style={styles.trustRow}>
-            {TRUST_MARKERS.map((t) => (
-              <View key={t.icon} style={styles.trustItem}>
-                <Feather name={t.icon} size={12} color={P.inkSoft} />
-                <Text style={styles.trustText}>{t.label}</Text>
+                {mode === 'signin' ? (
+                  <Pressable
+                    accessibilityRole="link"
+                    onPress={() => void onForgotPassword()}
+                    hitSlop={8}
+                    style={{ alignSelf: 'center' }}
+                  >
+                    <Text style={styles.smallLink}>Forgot password?</Text>
+                  </Pressable>
+                ) : null}
               </View>
-            ))}
-          </View>
+            )}
 
-          <View style={styles.footer}>
-            <Text style={styles.footerDisclaimer}>
-              Draft assistive tool · review and sign every note before clinical use.
-            </Text>
-            <Text style={styles.footerBrand}>© SoapNotesAi · soapnotesai.web.app</Text>
+            {/* Bottom box: mode switch (Instagram-style) */}
+            {method === 'email' ? (
+              <View style={styles.bottomBox}>
+                <Text style={styles.bottomText}>
+                  {mode === 'signin' ? "Don't have an account?" : 'Have an account?'}
+                </Text>
+                <Pressable
+                  accessibilityRole="link"
+                  onPress={() => {
+                    setMode((m) => (m === 'signin' ? 'signup' : 'signin'));
+                    setError(null);
+                  }}
+                  hitSlop={8}
+                >
+                  <Text style={styles.bottomLink}>
+                    {mode === 'signin' ? 'Sign up' : 'Log in'}
+                  </Text>
+                </Pressable>
+              </View>
+            ) : null}
+
+            <View style={styles.footer}>
+              <Text style={styles.footerText}>
+                Draft assistive tool · review and sign every note before clinical use.
+              </Text>
+              <Text style={styles.footerText}>© SoapNotesAi · soapnotesai.web.app</Text>
+            </View>
           </View>
         </ScrollView>
       </KeyboardAvoidingView>
@@ -530,107 +481,37 @@ function humanizeAuthError(e: unknown): string {
 }
 
 const makeStyles = (P: Palette) => StyleSheet.create({
-  root: { flex: 1, backgroundColor: P.skyBottom },
+  root: { flex: 1, backgroundColor: P.bg },
   container: {
     flexGrow: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    paddingHorizontal: 20,
-    paddingVertical: 40,
-    gap: 18,
+    paddingHorizontal: 24,
+    paddingVertical: 48,
   },
+  column: { width: '100%', maxWidth: 350, alignItems: 'center', gap: 0 },
 
-  brandRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },
-  brandLogo: { width: 86, height: 38 },
-  brandDivider: { width: 1, height: 30, backgroundColor: P.line },
-  brandTitle: {
-    fontSize: 17,
+  logo: { width: 96, height: 40, marginBottom: 6 },
+  wordmark: {
+    fontSize: 30,
     fontWeight: '800',
     color: P.ink,
-    letterSpacing: -0.4,
+    letterSpacing: -1,
   },
-  brandEyebrow: {
-    fontSize: 9,
-    fontWeight: '700',
-    color: P.gray,
-    letterSpacing: 1.1,
-    marginTop: 1,
-  },
-
-  card: {
-    width: '100%',
-    maxWidth: 400,
-    backgroundColor: P.card,
-    borderRadius: 22,
-    borderWidth: 1,
-    borderColor: 'rgba(15,23,42,0.06)',
-    paddingHorizontal: 22,
-    paddingVertical: 24,
-    alignItems: 'stretch',
-    gap: 12,
-    shadowColor: P.shadow,
-    shadowOffset: { width: 0, height: 18 },
-    shadowOpacity: 0.16,
-    shadowRadius: 34,
-    elevation: 8,
-  },
-  cardIcon: {
-    alignSelf: 'center',
-    width: 40,
-    height: 40,
-    borderRadius: 12,
-    backgroundColor: P.card,
-    borderWidth: 1,
-    borderColor: P.line,
-    alignItems: 'center',
-    justifyContent: 'center',
-    shadowColor: P.shadow,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
-    elevation: 2,
-  },
-  cardTitle: {
-    fontSize: 17,
-    fontWeight: '800',
-    color: P.ink,
-    textAlign: 'center',
-    letterSpacing: -0.3,
-    marginTop: 2,
-  },
-  cardSubtitle: {
-    fontSize: 12.5,
-    color: P.gray,
-    textAlign: 'center',
-    lineHeight: 18,
-    marginTop: -6,
-    marginBottom: 2,
-  },
+  tagline: { fontSize: 12.5, color: P.gray, marginTop: 4, marginBottom: 26 },
 
   methodRow: {
     flexDirection: 'row',
-    backgroundColor: P.fill,
-    borderRadius: 11,
-    padding: 3,
-    borderWidth: 1,
-    borderColor: P.line,
+    gap: 26,
+    marginBottom: 18,
   },
-  methodBtn: {
-    flex: 1,
-    alignItems: 'center',
-    paddingVertical: 8,
-    borderRadius: 8,
-  },
-  methodBtnActive: {
-    backgroundColor: P.card,
-    shadowColor: P.shadow,
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.12,
-    shadowRadius: 4,
-    elevation: 2,
-  },
-  methodText: { fontSize: 12.5, fontWeight: '600', color: P.gray },
-  methodTextActive: { color: P.ink, fontWeight: '700' },
+  methodBtn: { alignItems: 'center', gap: 6 },
+  methodText: { fontSize: 13, fontWeight: '600', color: P.grayLight },
+  methodTextActive: { color: P.ink },
+  methodUnderline: { height: 2, alignSelf: 'stretch', backgroundColor: 'transparent', borderRadius: 1 },
+  methodUnderlineOn: { backgroundColor: P.ink },
+
+  form: { width: '100%', gap: 10 },
 
   inputWrap: {
     flexDirection: 'row',
@@ -639,83 +520,82 @@ const makeStyles = (P: Palette) => StyleSheet.create({
     backgroundColor: P.fill,
     borderWidth: 1,
     borderColor: P.line,
-    borderRadius: 11,
-    paddingHorizontal: 13,
-    height: 46,
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    height: 44,
   },
-  inputWrapFocused: { borderColor: P.focus, backgroundColor: P.card },
-  input: {
-    flex: 1,
-    fontSize: 14,
-    color: P.ink,
-    paddingVertical: 0,
-    height: '100%',
-  },
-  phonePrefix: { fontSize: 14, fontWeight: '700', color: P.ink },
+  inputWrapFocused: { borderColor: P.focus },
+  input: { flex: 1, fontSize: 14, color: P.ink, paddingVertical: 0, height: '100%' },
+  phonePrefix: { fontSize: 14, fontWeight: '600', color: P.gray },
+  showHide: { fontSize: 13, fontWeight: '700', color: P.ink },
 
-  forgotLink: { fontSize: 12, fontWeight: '600', color: P.inkSoft, marginTop: -2 },
-  linkText: { fontSize: 12.5, fontWeight: '600', color: P.inkSoft, marginTop: 4 },
-  otpHint: { fontSize: 12, color: P.gray, lineHeight: 17 },
+  hint: { fontSize: 12, color: P.gray, lineHeight: 17 },
 
   errorBox: {
     backgroundColor: P.dangerSoft,
     borderWidth: 1,
     borderColor: P.dangerLine,
-    borderRadius: 10,
+    borderRadius: 8,
     padding: 10,
   },
-  errorText: { fontSize: 12.5, color: P.danger, lineHeight: 18 },
+  errorText: { fontSize: 12.5, color: P.danger, lineHeight: 18, textAlign: 'center' },
   resetBox: {
     backgroundColor: P.okSoft,
     borderWidth: 1,
     borderColor: P.okLine,
-    borderRadius: 10,
+    borderRadius: 8,
     padding: 10,
   },
-  resetText: { fontSize: 12.5, color: P.inkSoft, lineHeight: 18 },
+  resetText: { fontSize: 12.5, color: P.gray, lineHeight: 18 },
 
   primaryBtn: {
-    height: 46,
-    borderRadius: 12,
+    height: 44,
+    borderRadius: 8,
     backgroundColor: P.cta,
     alignItems: 'center',
     justifyContent: 'center',
-    marginTop: 2,
+    marginTop: 4,
   },
-  primaryBtnLabel: { color: P.ctaLabel, fontSize: 14, fontWeight: '700', letterSpacing: 0.2 },
+  primaryBtnLabel: { color: P.ctaLabel, fontSize: 14, fontWeight: '700' },
 
-  dividerRow: { flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 2 },
+  dividerRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 14,
+    marginVertical: 8,
+  },
   dividerLine: { flex: 1, height: 1, backgroundColor: P.line },
-  dividerText: { fontSize: 11, color: P.grayLight, fontWeight: '600' },
+  dividerText: { fontSize: 11, fontWeight: '700', color: P.grayLight, letterSpacing: 0.5 },
 
-  googleBtn: {
-    height: 44,
-    borderRadius: 11,
-    borderWidth: 1,
-    borderColor: P.line,
-    backgroundColor: P.card,
+  googleRow: {
+    flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
+    gap: 8,
+    height: 40,
   },
-  googleG: { fontSize: 17, fontWeight: '800', color: '#4285F4' },
+  googleG: { fontSize: 16, fontWeight: '800', color: '#4285F4' },
+  googleLabel: { fontSize: 13.5, fontWeight: '700', color: P.ink },
   googleError: { fontSize: 12, color: P.danger, textAlign: 'center' },
 
-  toggleRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-  toggleText: { fontSize: 13, color: P.gray },
-  toggleLink: { fontSize: 13, fontWeight: '700', color: P.ink },
+  smallLink: { fontSize: 12.5, color: P.gray, marginTop: 10 },
 
-  trustRow: {
+  bottomBox: {
     flexDirection: 'row',
-    flexWrap: 'wrap',
+    alignItems: 'center',
     justifyContent: 'center',
-    columnGap: 18,
-    rowGap: 6,
-    maxWidth: 460,
+    gap: 6,
+    width: '100%',
+    borderWidth: 1,
+    borderColor: P.line,
+    backgroundColor: P.box,
+    borderRadius: 10,
+    paddingVertical: 16,
+    marginTop: 22,
   },
-  trustItem: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-  trustText: { fontSize: 11.5, fontWeight: '600', color: P.inkSoft },
+  bottomText: { fontSize: 13.5, color: P.gray },
+  bottomLink: { fontSize: 13.5, fontWeight: '800', color: P.ink },
 
-  footer: { alignItems: 'center', gap: 3, marginTop: 4 },
-  footerDisclaimer: { fontSize: 11, color: P.grayLight, fontStyle: 'italic' },
-  footerBrand: { fontSize: 10.5, color: P.grayLight, fontWeight: '600' },
+  footer: { alignItems: 'center', gap: 3, marginTop: 26 },
+  footerText: { fontSize: 10.5, color: P.grayLight },
 });
