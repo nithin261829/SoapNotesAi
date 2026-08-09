@@ -1,26 +1,69 @@
 import { Feather } from '@expo/vector-icons';
+import Constants from 'expo-constants';
 import { useRouter } from 'expo-router';
-import { useState } from 'react';
-import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
+import { useEffect, useState } from 'react';
+import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { listPatients } from '@/api/patients';
+import { getVerificationStatus } from '@/api/verification';
 import { useAuth } from '@/auth/AuthContext';
 import { BrandLogo } from '@/components/BrandLogo';
 import { useStyles, useThemeColors } from '@/theme/ThemeContext';
 import { fonts } from '@/theme/fonts';
-import { font, radii, space, type ThemeColors } from '@/theme/tokens';
+import { font, radii, shadow, space, type ThemeColors } from '@/theme/tokens';
+
+const APP_VERSION = Constants.expoConfig?.version ?? '1.0.0';
+
+/** Derive up-to-two uppercase initials from a display name (falls back gracefully). */
+function initials(name?: string | null, email?: string | null): string {
+  const source = (name ?? '').trim();
+  if (source) {
+    const parts = source.split(/\s+/).filter(Boolean);
+    const letters = parts.slice(0, 2).map((p) => p.charAt(0));
+    if (letters.length) return letters.join('').toUpperCase();
+  }
+  const e = (email ?? '').trim();
+  if (e) return e.charAt(0).toUpperCase();
+  return 'DR';
+}
 
 export default function ProfileScreen() {
   const router = useRouter();
-  const { user, profile, switchActiveClinic, signOut } = useAuth();
+  const { user, profile, getIdToken, switchActiveClinic, signOut } = useAuth();
   const c = useThemeColors();
   const insets = useSafeAreaInsets();
   const styles = useStyles(makeStyles);
   const [switching, setSwitching] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [stats, setStats] = useState<{ patients: number; notes: number } | null>(null);
+  const [verified, setVerified] = useState<'verified' | 'pending' | 'rejected' | 'unverified' | null>(
+    null,
+  );
+
+  useEffect(() => {
+    if (!profile) return;
+    void (async () => {
+      try {
+        const token = await getIdToken();
+        const [patients, vs] = await Promise.all([
+          listPatients(token),
+          getVerificationStatus(token).catch(() => null),
+        ]);
+        const notes = patients.reduce((sum, p) => sum + (p.patient.recording_count ?? 0), 0);
+        setStats({ patients: patients.length, notes });
+        if (vs) setVerified(vs.status);
+      } catch {
+        /* stats are best-effort; the page works without them */
+      }
+    })();
+  }, [profile, getIdToken]);
 
   const memberships = profile?.profile.memberships ?? [];
   const activeClinicId = profile?.profile.default_clinic_id;
+
+  const displayName = profile?.profile.display_name ?? user?.displayName ?? 'Signed-in doctor';
+  const email = user?.email ?? '';
 
   const handleSwitch = async (clinicId: string) => {
     if (clinicId === activeClinicId || switching) return;
@@ -36,109 +79,209 @@ export default function ProfileScreen() {
   };
 
   return (
-    <View style={[styles.container, { paddingTop: insets.top + 12 }]}>
-      <BrandLogo />
-      <Text style={styles.pageTitle}>Profile</Text>
+    <ScrollView
+      style={styles.container}
+      contentContainerStyle={[
+        styles.content,
+        { paddingTop: insets.top + space.md, paddingBottom: insets.bottom + 112 },
+      ]}
+      showsVerticalScrollIndicator={false}
+    >
+      <View style={styles.topBar}>
+        <BrandLogo height={26} align="right" />
+      </View>
 
-      <View style={styles.card}>
-        <View style={styles.tagPill}>
-          <Text style={styles.tagPillText}>Account</Text>
+      {/* ── Identity header ─────────────────────────────────────────── */}
+      <Text style={styles.sectionLabel}>Account</Text>
+      <View style={[styles.card, styles.identityCard]}>
+        <View style={styles.avatar}>
+          <Text style={styles.avatarText}>{initials(displayName, email)}</Text>
         </View>
-        <Text style={styles.name}>
-          {profile?.profile.display_name ?? user?.displayName ?? 'Signed-in doctor'}
-        </Text>
-        <Text style={styles.email}>{user?.email ?? ''}</Text>
+        <View style={styles.nameRow}>
+          <Text style={styles.name}>{displayName}</Text>
+          {verified === 'verified' ? (
+            <View style={styles.verifiedSeal}>
+              <Feather name="check" size={11} color={c.textOnAccent} />
+            </View>
+          ) : null}
+        </View>
+
         {profile?.profile.credentials ? (
-          <Text style={styles.credentials}>{profile.profile.credentials}</Text>
+          <View style={styles.credChip}>
+            <Feather name="award" size={12} color={c.accent} />
+            <Text style={styles.credChipText}>{profile.profile.credentials}</Text>
+          </View>
         ) : null}
+
         {profile?.profile.registration_id ? (
-          <Text style={styles.registrationId}>
-            Doctor ID: {profile.profile.registration_id}
-          </Text>
+          <View style={styles.idBadge}>
+            <Feather name="hash" size={12} color={c.textMuted} />
+            <Text style={styles.idBadgeLabel}>Doctor ID</Text>
+            <Text style={styles.idBadgeValue}>{profile.profile.registration_id}</Text>
+          </View>
+        ) : null}
+
+        {email ? (
+          <View style={styles.emailRow}>
+            <Feather name="mail" size={13} color={c.textSubtle} />
+            <Text style={styles.email}>{email}</Text>
+          </View>
         ) : null}
       </View>
 
+      {/* ── Stat tiles ──────────────────────────────────────────────── */}
+      <View style={styles.statsRow}>
+        <View style={styles.statTile}>
+          <Text style={styles.statValue}>{stats ? stats.patients : '—'}</Text>
+          <Text style={styles.statLabel}>Patients</Text>
+        </View>
+        <View style={styles.statTile}>
+          <Text style={styles.statValue}>{stats ? stats.notes : '—'}</Text>
+          <Text style={styles.statLabel}>Notes</Text>
+        </View>
+        <View style={styles.statTile}>
+          <Text style={[styles.statValue, verified === 'verified' && { color: c.accent }]}>
+            {verified === 'verified'
+              ? '✓'
+              : verified === 'pending'
+                ? '…'
+                : verified === 'rejected'
+                  ? '✕'
+                  : '—'}
+          </Text>
+          <Text style={styles.statLabel}>
+            {verified === 'verified'
+              ? 'Verified'
+              : verified === 'pending'
+                ? 'In review'
+                : 'Verify'}
+          </Text>
+        </View>
+      </View>
+
+      {/* ── Organisation ────────────────────────────────────────────── */}
       {profile ? (
-        <View style={styles.card}>
-          <View style={styles.tagPill}>
-            <Text style={styles.tagPillText}>Organization</Text>
+        <>
+          <Text style={styles.sectionLabel}>Organisation</Text>
+          <View style={styles.card}>
+            <View style={styles.orgHeader}>
+              <View style={styles.orgIcon}>
+                <Feather name="briefcase" size={16} color={c.accent} />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.orgName}>{profile.org_name ?? profile.profile.org_id}</Text>
+                <Text style={styles.orgSub}>
+                  Active clinic:{' '}
+                  <Text style={styles.orgSubValue}>
+                    {profile.active_clinic_name ?? activeClinicId ?? '—'}
+                  </Text>
+                </Text>
+              </View>
+            </View>
+
+            {memberships.length > 1 ? (
+              <>
+                <View style={styles.divider} />
+                <Text style={styles.switchHelp}>
+                  You&apos;re a member of {memberships.length} clinics. Tap to switch the active one.
+                </Text>
+                <View style={styles.switchList}>
+                  {memberships.map((m) => {
+                    const isActive = m.clinic_id === activeClinicId;
+                    const isSwitching = switching === m.clinic_id;
+                    return (
+                      <Pressable
+                        key={m.clinic_id}
+                        onPress={() => void handleSwitch(m.clinic_id)}
+                        disabled={isActive || switching !== null}
+                        style={({ pressed }) => [
+                          styles.switchRow,
+                          isActive && styles.switchRowActive,
+                          { opacity: pressed && !isActive ? 0.7 : 1 },
+                        ]}
+                      >
+                        <View
+                          style={[styles.switchDot, isActive && styles.switchDotActive]}
+                        >
+                          {isActive ? (
+                            <Feather name="check" size={13} color={c.textOnAccent} />
+                          ) : null}
+                        </View>
+                        <View style={{ flex: 1 }}>
+                          <Text style={styles.switchName}>{m.clinic_id}</Text>
+                          <Text style={styles.switchRole}>{m.role}</Text>
+                        </View>
+                        {isSwitching ? <ActivityIndicator size="small" color={c.accent} /> : null}
+                      </Pressable>
+                    );
+                  })}
+                </View>
+                {error ? <Text style={styles.errorText}>{error}</Text> : null}
+              </>
+            ) : null}
           </View>
-          <Text style={styles.orgName}>{profile.org_name ?? profile.profile.org_id}</Text>
-          <Text style={styles.activeClinic}>
-            Active clinic:{' '}
-            <Text style={styles.activeClinicValue}>
-              {profile.active_clinic_name ?? activeClinicId ?? '—'}
+        </>
+      ) : null}
+
+      {/* ── Preferences ─────────────────────────────────────────────── */}
+      <Text style={styles.sectionLabel}>Preferences</Text>
+      <View style={styles.card}>
+        <Pressable
+          onPress={() => router.push('/verification' as never)}
+          accessibilityRole="button"
+          accessibilityLabel="Doctor verification"
+          style={({ pressed }) => [styles.listRow, { opacity: pressed ? 0.7 : 1 }]}
+        >
+          <View style={styles.listIcon}>
+            <Feather name="shield" size={17} color={c.accent} />
+          </View>
+          <View style={{ flex: 1 }}>
+            <Text style={styles.listLabel}>Doctor verification</Text>
+            <Text style={styles.listHint}>
+              {verified === 'verified'
+                ? 'Verified — badge prints on your PDFs'
+                : verified === 'pending'
+                  ? 'Documents under review'
+                  : 'Get the verified badge on your PDFs'}
             </Text>
-          </Text>
-        </View>
-      ) : null}
-
-      {/* Settings entry — appearance + other prefs live behind here */}
-      <Pressable
-        onPress={() => router.push('/settings')}
-        accessibilityRole="button"
-        accessibilityLabel="Open settings"
-        style={({ pressed }) => [styles.settingsRow, { opacity: pressed ? 0.85 : 1 }]}
-      >
-        <View style={styles.settingsIcon}>
-          <Feather name="settings" size={18} color={c.accent} />
-        </View>
-        <View style={{ flex: 1 }}>
-          <Text style={styles.settingsLabel}>Settings</Text>
-          <Text style={styles.settingsHint}>Appearance and preferences</Text>
-        </View>
-        <Feather name="chevron-right" size={20} color={c.textSubtle} />
-      </Pressable>
-
-      {memberships.length > 1 ? (
-        <View style={styles.card}>
-          <View style={styles.tagPill}>
-            <Text style={styles.tagPillText}>Switch clinic</Text>
           </View>
-          <Text style={styles.switchHelp}>
-            You're a member of {memberships.length} clinics. Tap to switch the active one.
-          </Text>
-          <View style={styles.switchList}>
-            {memberships.map((m) => {
-              const isActive = m.clinic_id === activeClinicId;
-              const isSwitching = switching === m.clinic_id;
-              return (
-                <Pressable
-                  key={m.clinic_id}
-                  onPress={() => void handleSwitch(m.clinic_id)}
-                  disabled={isActive || switching !== null}
-                  style={({ pressed }) => [
-                    styles.switchRow,
-                    isActive && styles.switchRowActive,
-                    { opacity: pressed && !isActive ? 0.7 : 1 },
-                  ]}
-                >
-                  <View style={{ flex: 1 }}>
-                    <Text style={styles.switchName}>{m.clinic_id}</Text>
-                    <Text style={styles.switchRole}>{m.role}</Text>
-                  </View>
-                  {isSwitching ? (
-                    <ActivityIndicator color={c.accent} />
-                  ) : isActive ? (
-                    <Text style={styles.activeBadge}>ACTIVE</Text>
-                  ) : null}
-                </Pressable>
-              );
-            })}
+          <Feather name="chevron-right" size={20} color={c.textSubtle} />
+        </Pressable>
+        <View style={styles.rowDivider} />
+        <Pressable
+          onPress={() => router.push('/settings')}
+          accessibilityRole="button"
+          accessibilityLabel="Open settings"
+          style={({ pressed }) => [styles.listRow, { opacity: pressed ? 0.7 : 1 }]}
+        >
+          <View style={styles.listIcon}>
+            <Feather name="settings" size={17} color={c.accent} />
           </View>
-          {error ? <Text style={styles.errorText}>{error}</Text> : null}
-        </View>
-      ) : null}
+          <View style={{ flex: 1 }}>
+            <Text style={styles.listLabel}>Settings</Text>
+            <Text style={styles.listHint}>Appearance and preferences</Text>
+          </View>
+          <Feather name="chevron-right" size={20} color={c.textSubtle} />
+        </Pressable>
+      </View>
 
+      {/* ── Sign out ────────────────────────────────────────────────── */}
       <Pressable
         accessibilityRole="button"
         accessibilityLabel="Sign out"
         onPress={() => void signOut()}
-        style={({ pressed }) => [styles.signOutBtn, { opacity: pressed ? 0.75 : 1 }]}
+        style={({ pressed }) => [styles.signOutBtn, { opacity: pressed ? 0.7 : 1 }]}
       >
-        <Text style={styles.signOutLabel}>SIGN OUT</Text>
+        <Feather name="log-out" size={16} color={c.danger} />
+        <Text style={styles.signOutLabel}>Sign out</Text>
       </Pressable>
-    </View>
+
+      {/* ── Footer ──────────────────────────────────────────────────── */}
+      <View style={styles.footer}>
+        <Text style={styles.footerVersion}>Version {APP_VERSION}</Text>
+        <Text style={styles.footerBrand}>Voice to SOAP notes</Text>
+      </View>
+    </ScrollView>
   );
 }
 
@@ -147,107 +290,196 @@ const makeStyles = (c: ThemeColors) =>
     container: {
       flex: 1,
       backgroundColor: c.bg,
-      padding: space.lg,
-      paddingBottom: 100,
-      gap: space.lg,
     },
-    pageTitle: {
+    content: {
+      paddingHorizontal: space.lg,
+      gap: space.sm,
+    },
+    topBar: {
+      marginBottom: space.xs,
+    },
+
+    sectionLabel: {
       fontFamily: fonts.displayBold,
-      fontSize: 34,
-      lineHeight: 40,
-      color: c.text,
-      letterSpacing: -1,
+      fontSize: font.size.xs,
+      color: c.textMuted,
+      letterSpacing: 1.2,
+      textTransform: 'uppercase',
+      marginTop: space.md,
+      marginBottom: space.xs,
+      marginLeft: space.xs,
     },
+
     card: {
       backgroundColor: c.surface,
       borderRadius: radii.lg,
       borderWidth: 1,
       borderColor: c.border,
       padding: space.lg,
+      gap: space.md,
+      ...shadow.card,
+    },
+
+    // Identity header.
+    identityCard: {
+      alignItems: 'center',
       gap: space.sm,
+      paddingVertical: space.xl,
     },
-    tagPill: {
-      alignSelf: 'flex-start',
-      paddingHorizontal: 8,
-      paddingVertical: 3,
-      borderRadius: radii.sm,
-      backgroundColor: c.accentSoft,
-      borderWidth: 1,
+    avatar: {
+      width: 76,
+      height: 76,
+      borderRadius: radii.pill,
+      backgroundColor: c.accentSoftStrong,
+      borderWidth: 1.5,
       borderColor: c.accentDim,
+      alignItems: 'center',
+      justifyContent: 'center',
+      marginBottom: space.xs,
     },
-    tagPillText: {
+    avatarText: {
       fontFamily: fonts.displayBold,
-      fontSize: font.size.xs - 1,
+      fontSize: font.size.xxl,
       color: c.accent,
-      letterSpacing: 0.8,
-      textTransform: 'uppercase',
+      letterSpacing: -0.5,
     },
+    nameRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
     name: {
       fontFamily: fonts.displayBold,
       fontSize: font.size.xl,
       color: c.text,
-      marginTop: 6,
       letterSpacing: -0.4,
+      textAlign: 'center',
     },
-    email: { fontFamily: fonts.display, fontSize: font.size.sm, color: c.textMuted },
-    credentials: {
-      fontFamily: fonts.displayBold,
-      fontSize: font.size.xs,
-      color: c.accent,
-      letterSpacing: 0.8,
-    },
-    registrationId: {
-      fontFamily: fonts.displaySemi,
-      fontSize: font.size.xs,
-      color: c.textMuted,
-      letterSpacing: 0.4,
-    },
-    orgName: {
-      fontFamily: fonts.displayBold,
-      fontSize: font.size.lg,
-      color: c.text,
-      marginTop: 4,
-      letterSpacing: -0.3,
-    },
-    activeClinic: { fontFamily: fonts.display, fontSize: font.size.sm, color: c.textMuted },
-    activeClinicValue: { fontFamily: fonts.displaySemi, color: c.text },
-
-    settingsRow: {
-      flexDirection: 'row',
+    verifiedSeal: {
+      width: 20,
+      height: 20,
+      borderRadius: 10,
+      backgroundColor: c.accent,
       alignItems: 'center',
-      gap: space.md,
+      justifyContent: 'center',
+    },
+    statsRow: { flexDirection: 'row', gap: space.sm, marginTop: space.xs },
+    statTile: {
+      flex: 1,
       backgroundColor: c.surface,
       borderRadius: radii.lg,
       borderWidth: 1,
       borderColor: c.border,
-      paddingHorizontal: space.lg,
       paddingVertical: space.md + 2,
+      alignItems: 'center',
+      gap: 3,
+      ...shadow.card,
     },
-    settingsIcon: {
-      width: 36,
-      height: 36,
+    statValue: {
+      fontFamily: fonts.displayExtra,
+      fontSize: font.size.xxl,
+      color: c.text,
+      letterSpacing: -0.5,
+    },
+    statLabel: {
+      fontFamily: fonts.displaySemi,
+      fontSize: font.size.xs - 1,
+      color: c.textMuted,
+      letterSpacing: 0.6,
+      textTransform: 'uppercase',
+    },
+    rowDivider: { height: 1, backgroundColor: c.border, marginVertical: 2 },
+    credChip: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 5,
+      paddingHorizontal: 10,
+      paddingVertical: 4,
+      borderRadius: radii.pill,
+      backgroundColor: c.accentSoft,
+      borderWidth: 1,
+      borderColor: c.accentDim,
+    },
+    credChipText: {
+      fontFamily: fonts.displaySemi,
+      fontSize: font.size.xs,
+      color: c.accent,
+      letterSpacing: 0.4,
+    },
+    idBadge: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 6,
+      paddingHorizontal: 10,
+      paddingVertical: 5,
       borderRadius: radii.sm,
+      backgroundColor: c.surfaceElevated,
+      borderWidth: 1,
+      borderColor: c.border,
+    },
+    idBadgeLabel: {
+      fontFamily: fonts.displaySemi,
+      fontSize: font.size.xs - 1,
+      color: c.textMuted,
+      letterSpacing: 0.8,
+      textTransform: 'uppercase',
+    },
+    idBadgeValue: {
+      fontFamily: fonts.displayBold,
+      fontSize: font.size.sm,
+      color: c.text,
+      letterSpacing: 1,
+    },
+    emailRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 6,
+    },
+    email: {
+      fontFamily: fonts.display,
+      fontSize: font.size.sm,
+      color: c.textMuted,
+    },
+
+    // Organisation.
+    orgHeader: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: space.md,
+    },
+    orgIcon: {
+      width: 40,
+      height: 40,
+      borderRadius: radii.md,
       backgroundColor: c.accentSoft,
       borderWidth: 1,
       borderColor: c.accentDim,
       alignItems: 'center',
       justifyContent: 'center',
     },
-    settingsLabel: {
-      fontFamily: fonts.displaySemi,
-      fontSize: font.size.base,
+    orgName: {
+      fontFamily: fonts.displayBold,
+      fontSize: font.size.lg,
       color: c.text,
-      letterSpacing: -0.2,
+      letterSpacing: -0.3,
     },
-    settingsHint: {
+    orgSub: {
       fontFamily: fonts.display,
-      fontSize: font.size.xs,
+      fontSize: font.size.sm,
       color: c.textMuted,
       marginTop: 2,
     },
+    orgSubValue: { fontFamily: fonts.displaySemi, color: c.text },
 
-    switchHelp: { fontFamily: fonts.display, fontSize: font.size.sm, color: c.textMuted, lineHeight: 18 },
-    switchList: { gap: 8 },
+    divider: {
+      height: 1,
+      backgroundColor: c.border,
+      marginVertical: space.xs,
+    },
+
+    switchHelp: {
+      fontFamily: fonts.display,
+      fontSize: font.size.sm,
+      color: c.textMuted,
+      lineHeight: 18,
+    },
+    switchList: { gap: space.sm },
     switchRow: {
       flexDirection: 'row',
       alignItems: 'center',
@@ -256,10 +488,26 @@ const makeStyles = (c: ThemeColors) =>
       borderColor: c.border,
       borderRadius: radii.md,
       paddingHorizontal: space.md,
-      paddingVertical: space.sm + 2,
-      gap: space.sm,
+      paddingVertical: space.md,
+      gap: space.md,
     },
-    switchRowActive: { borderColor: c.accent },
+    switchRowActive: {
+      borderColor: c.accent,
+      backgroundColor: c.accentSoft,
+    },
+    switchDot: {
+      width: 22,
+      height: 22,
+      borderRadius: radii.pill,
+      borderWidth: 1.5,
+      borderColor: c.borderStrong,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    switchDotActive: {
+      backgroundColor: c.accent,
+      borderColor: c.accent,
+    },
     switchName: { fontFamily: fonts.displaySemi, fontSize: font.size.base, color: c.text },
     switchRole: {
       fontFamily: fonts.display,
@@ -269,26 +517,79 @@ const makeStyles = (c: ThemeColors) =>
       letterSpacing: 0.5,
       marginTop: 2,
     },
-    activeBadge: {
-      fontFamily: fonts.displayBold,
-      fontSize: font.size.xs - 1,
-      color: c.accent,
-      letterSpacing: 0.8,
+    errorText: {
+      fontFamily: fonts.display,
+      color: c.danger,
+      fontSize: font.size.sm,
+      marginTop: space.xs,
     },
-    errorText: { fontFamily: fonts.display, color: c.danger, fontSize: font.size.sm, marginTop: 4 },
 
+    // Preferences list rows.
+    listRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: space.md,
+    },
+    listIcon: {
+      width: 40,
+      height: 40,
+      borderRadius: radii.md,
+      backgroundColor: c.accentSoft,
+      borderWidth: 1,
+      borderColor: c.accentDim,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    listLabel: {
+      fontFamily: fonts.displaySemi,
+      fontSize: font.size.base,
+      color: c.text,
+      letterSpacing: -0.2,
+    },
+    listHint: {
+      fontFamily: fonts.display,
+      fontSize: font.size.xs,
+      color: c.textMuted,
+      marginTop: 2,
+    },
+
+    // Sign out.
     signOutBtn: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: space.sm,
+      marginTop: space.md,
       paddingVertical: space.md + 2,
       paddingHorizontal: space.lg,
       borderRadius: radii.md,
       borderWidth: 1,
-      borderColor: c.borderStrong,
-      alignItems: 'center',
+      borderColor: c.danger,
+      backgroundColor: c.dangerSoft,
     },
     signOutLabel: {
       fontFamily: fonts.displayBold,
-      color: c.text,
-      fontSize: font.size.sm,
-      letterSpacing: 1.2,
+      color: c.danger,
+      fontSize: font.size.base,
+      letterSpacing: 0.2,
+    },
+
+    // Footer.
+    footer: {
+      alignItems: 'center',
+      gap: 3,
+      marginTop: space.xl,
+    },
+    footerVersion: {
+      fontFamily: fonts.displayMedium,
+      fontSize: font.size.xs,
+      color: c.textSubtle,
+      letterSpacing: 0.3,
+    },
+    footerBrand: {
+      fontFamily: fonts.display,
+      fontSize: font.size.xs,
+      color: c.textDim,
+      letterSpacing: 0.3,
     },
   });
