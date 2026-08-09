@@ -172,12 +172,6 @@ export default function SignInScreen() {
         >
           <View style={styles.column}>
             {/* Wordmark */}
-            <Image
-              source={require('../../assets/logo.png')}
-              style={styles.logo}
-              resizeMode="contain"
-              accessibilityLabel="SoapNotesAi"
-            />
             <Text style={styles.wordmark}>SoapNotesAi</Text>
             <Text style={styles.tagline}>Voice → SOAP notes for clinicians</Text>
 
@@ -430,6 +424,18 @@ export default function SignInScreen() {
               </View>
             ) : null}
 
+            {/* Voice to SOAP notes */}
+            <View style={styles.poweredRow}>
+              <Text style={styles.poweredText}>Voice to SOAP notes</Text>
+              <View style={styles.poweredDivider} />
+              <Image
+                source={require('../../assets/logo.png')}
+                style={styles.poweredLogo}
+                resizeMode="contain"
+                accessibilityLabel="SoapNotesAi"
+              />
+            </View>
+
             <View style={styles.footer}>
               <Text style={styles.footerText}>
                 Draft assistive tool · review and sign every note before clinical use.
@@ -491,7 +497,15 @@ const makeStyles = (P: Palette) => StyleSheet.create({
   },
   column: { width: '100%', maxWidth: 350, alignItems: 'center', gap: 0 },
 
-  logo: { width: 96, height: 40, marginBottom: 6 },
+  poweredRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    marginTop: 24,
+  },
+  poweredText: { fontSize: 12, fontWeight: '600', color: P.gray },
+  poweredDivider: { width: 1, height: 18, backgroundColor: P.line },
+  poweredLogo: { width: 74, height: 30 },
   wordmark: {
     fontSize: 30,
     fontWeight: '800',
