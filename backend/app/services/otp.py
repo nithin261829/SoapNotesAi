@@ -188,6 +188,27 @@ def request_phone_login_otp(phone: str) -> dict:
     ref = db.collection("otp_challenges").document(f"phone_{normalized}")
     now = utc_now()
 
+    # Test numbers (app_config/auth.test_phones: {"+91XXXXXXXXXX": "123456"}):
+    # fixed code, no SMS sent, no rate-limit noise. Config-driven — remove the
+    # map entry to disable. Never use for real accounts.
+    test_phones = get_config_doc("auth").get("test_phones") or {}
+    if isinstance(test_phones, dict) and normalized in test_phones:
+        code = str(test_phones[normalized])
+        ref.set(
+            {
+                "code_hash": _hash(code),
+                "expires_at": (now + timedelta(minutes=OTP_TTL_MINUTES)).isoformat(),
+                "attempts": 0,
+                "sent_to": normalized,
+                "channel": "test",
+                "window_start": now.isoformat(),
+                "window_sends": 1,
+                "created_at": now.isoformat(),
+            }
+        )
+        logger.info("phone_login_otp_test_number")
+        return {"sent_to": _mask(normalized), "channel": "test", "ttl_minutes": OTP_TTL_MINUTES}
+
     snap = ref.get()
     data = snap.to_dict() if snap.exists else {}
     window_start = data.get("window_start")
