@@ -412,9 +412,11 @@ export default function RecordScreen() {
     <View style={styles.root}>
     <ScrollView
       style={styles.scroll}
-      contentContainerStyle={[styles.container, { paddingTop: insets.top + 12 }]}
+      contentContainerStyle={[styles.container, { paddingTop: insets.top + 8 }]}
     >
-      <BrandLogo />
+      <View style={[styles.cornerLogo, { top: insets.top + 8 }]} pointerEvents="none">
+        <BrandLogo height={26} />
+      </View>
       {state.status === 'idle' && processing.phase === 'idle' ? <GreetingBanner /> : null}
       {/* In-content top row — back button (when needed) + REC pill (when active) */}
       {(mode !== 'idle' || isRec || isPaused) ? (
@@ -887,6 +889,7 @@ const makeStyles = (c: ThemeColors) => StyleSheet.create({
     justifyContent: 'space-between',
     marginBottom: 4,
   },
+  cornerLogo: { position: 'absolute', right: space.base, zIndex: 10 },
   inlineBackBtn: {
     flexDirection: 'row',
     alignItems: 'center',
