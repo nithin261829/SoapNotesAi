@@ -121,35 +121,19 @@ export default function SignInScreen() {
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
       >
-        {/* Hero — wellness-clinic feel */}
-        <View style={styles.hero}>
-          <View style={styles.brandRow}>
-            <Image
-              source={require('../../assets/logo.png')}
-              style={styles.brandLogo}
-              resizeMode="contain"
-              accessibilityLabel="SoapNotesAi"
-            />
-            <View>
-              <Text style={styles.brandTitle}>SoapNotesAi</Text>
-              <Text style={styles.brandEyebrow}>Voice to SOAP notes</Text>
-            </View>
-          </View>
-
-          <View style={{ marginTop: space.xxl }}>
-            <Text style={styles.heroLine1}>
-              {mode === 'signin' ? 'Welcome' : 'Let’s get'}
-            </Text>
-            <Text style={styles.heroLine2}>
-              {mode === 'signin' ? 'back.' : 'started.'}
-            </Text>
-            <Text style={styles.heroAccent}>{mode === 'signin' ? 'sign in' : 'create account'}</Text>
-          </View>
-
-          <Text style={styles.subtitle}>
-            {mode === 'signin'
-              ? 'Pick up where you left off. Your patients and recordings are right where you left them.'
-              : 'Dictate a session, the AI drafts the SOAP, you review and sign. Built for the rhythm of a busy clinic.'}
+        {/* Header — professional SaaS pattern: small brand, modest heading */}
+        <View style={styles.header}>
+          <Image
+            source={require('../../assets/logo.png')}
+            style={styles.brandLogo}
+            resizeMode="contain"
+            accessibilityLabel="SoapNotesAi"
+          />
+          <Text style={styles.headerTitle}>
+            {mode === 'signin' ? 'Sign in to SoapNotesAi' : 'Create your SoapNotesAi account'}
+          </Text>
+          <Text style={styles.headerSub}>
+            Voice → SOAP notes for clinicians · Voice to SOAP notes
           </Text>
         </View>
 
@@ -449,13 +433,37 @@ const makeStyles = (c: ThemeColors) => StyleSheet.create({
   scroll: { backgroundColor: c.bg },
   container: {
     flexGrow: 1,
+    justifyContent: 'center',
     paddingHorizontal: space.lg,
-    paddingTop: space.xxl + space.lg,
-    paddingBottom: space.xxl,
-    gap: space.lg,
+    paddingTop: space.xl,
+    paddingBottom: space.xl,
+    gap: space.md,
   },
 
-  // ─── Hero ───────────────────────────────────────────────
+  // ─── Header (professional SaaS pattern) ─────────────────
+  header: {
+    alignItems: 'center',
+    gap: space.sm,
+    marginTop: space.lg,
+    marginBottom: space.md,
+    width: '100%',
+    maxWidth: 460,
+    alignSelf: 'center',
+  },
+  headerTitle: {
+    fontFamily: fonts.displayBold,
+    fontSize: 23,
+    color: c.text,
+    letterSpacing: -0.5,
+    textAlign: 'center',
+    marginTop: space.sm,
+  },
+  headerSub: {
+    fontFamily: fonts.display,
+    fontSize: font.size.sm,
+    color: c.textMuted,
+    textAlign: 'center',
+  },
   hero: { gap: space.sm, marginBottom: space.lg },
   brandRow: { flexDirection: 'row', alignItems: 'center', gap: space.md },
   brandLogo: { width: 96, height: 44 },
