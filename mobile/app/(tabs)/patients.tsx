@@ -256,6 +256,7 @@ function AddPatientModal({
   const [name, setName] = useState('');
   const [age, setAge] = useState('');
   const [sex, setSex] = useState<PatientSex | null>(null);
+  const [phone, setPhone] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -263,6 +264,7 @@ function AddPatientModal({
     setName('');
     setAge('');
     setSex(null);
+    setPhone('');
     setError(null);
     setSubmitting(false);
   };
@@ -277,6 +279,7 @@ function AddPatientModal({
         name: name.trim(),
         age_at_record: age ? Number.parseInt(age, 10) : undefined,
         sex: sex ?? undefined,
+        phone: phone.trim() || undefined,
       });
       onCreated(entry);
       reset();
@@ -349,6 +352,18 @@ function AddPatientModal({
                 })}
               </View>
             </View>
+          </View>
+
+          <View style={{ gap: 6 }}>
+            <Text style={styles.label}>Phone (for follow-up reminders)</Text>
+            <TextInput
+              style={styles.input}
+              value={phone}
+              onChangeText={setPhone}
+              placeholder="+91 …"
+              keyboardType="phone-pad"
+              placeholderTextColor={c.textDim}
+            />
           </View>
 
           {error ? <Text style={styles.errorText}>{error}</Text> : null}

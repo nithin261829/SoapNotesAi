@@ -1,9 +1,43 @@
 # SoapNotesAi — Remaining Work Roadmap
 
-Last updated: 2026-06-10 (mid-session checkpoint)
+Last updated: 2026-08-08 (billing + cost-privacy sprint)
 
 This file captures what's done, what's next, and the key decisions so we can
 pick back up later without re-deriving everything from chat history.
+
+---
+
+## ✅ 2026-08-08 sprint — cost privacy + Razorpay billing
+
+- **AI cost hidden from clients**: tokens/cost/provider/model moved to
+  backend-only `organizations/{org}/usage/{recordingId}` (deny-all rules);
+  removed from Recording docs, API responses, embedded SOAP (`llm_*`), and
+  all mobile UI. 66 legacy recording docs backfilled + scrubbed.
+- **Razorpay billing backend** (`app/routers/billing.py`): plans / wallet /
+  order create / verify (HMAC) / webhook, idempotent fulfillment in a
+  Firestore transaction. Pricing server-side: ₹500 joining fee (7-day trial),
+  ₹499 standard, ₹799 premium, ₹5/note, top-ups ₹50–₹50,000 (paise ints).
+- **Keys in Firestore, not env** (user preference): `app_config/razorpay`
+  doc, read via `app/services/app_config.py` (TTL cache, env fallback).
+  → PENDING USER: paste real key_id/key_secret/webhook_secret into that doc
+  and point a Razorpay-dashboard webhook (payment.captured) at
+  `<cloud-run-url>/v1/billing/webhook`.
+- **Mobile payments screen**: Settings → Payments & Plans (`app/payments.tsx`),
+  wallet top-up presets/custom, plan matrix, joining fee, transactions.
+  Razorpay checkout needs the dev/release build (Expo Go shows a clear alert).
+- **Firestore rules deployed**; new deny-all matches for `usage`, `app_config`,
+  `payments`; owner-read `billing`.
+- **Fixed** `deploy/scripts/03-build-and-push.sh` REPO_ROOT `||`/`&&`
+  precedence bug that produced a two-line repo root and broke deploys.
+
+### Next (in priority order)
+1. Enforce billing at note generation: ₹5 wallet debit on payg tier, daily
+   30-case cap on standard, trial checks.
+2. EAS dev build (unlocks BOTH Google Sign-In and Razorpay native SDK).
+3. OTP login, doctor verification workflow + PDF verified badge.
+4. Feature batch: dual-role accounts, follow-up engine + continuation pages,
+   Excel export, reminders, gestures/greetings, inactivity banner, doc uploads.
+5. Play Store / App Store submission via EAS.
 
 ---
 

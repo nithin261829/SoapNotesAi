@@ -15,7 +15,7 @@ from fastapi.responses import StreamingResponse
 from jinja2 import Environment, FileSystemLoader, select_autoescape
 from pydantic import BaseModel
 
-from app.auth.deps import TenantUserDep
+from app.auth.deps import ClinicianDep, TenantUserDep
 from app.models.common import utc_now
 from app.models.recording import Recording
 from app.models.soap import SoapNote
@@ -108,13 +108,27 @@ def patch_recording_soap(
     recording_id: str,
     patient_id: str,
     body: PatchSoapRequest,
-    user: TenantUserDep,
+    user: ClinicianDep,
 ) -> RecordingResponse:
     """Overwrite the embedded SoapNote. Stamps edited_by_doctor=True."""
     rec, ref = _load_recording(user, patient_id, recording_id)
 
     now = utc_now()
-    soap = body.soap.model_copy(update={"edited_by_doctor": True, "updated_at": now})
+    # Server-controlled fields are never taken from the client: AI provenance
+    # stays scrubbed (usage collection is the record of truth) and signature/
+    # validation metadata carries over from the stored note.
+    stored = rec.soap
+    soap = body.soap.model_copy(
+        update={
+            "edited_by_doctor": True,
+            "updated_at": now,
+            "llm_provider": None,
+            "llm_model_version": None,
+            "validated": stored.validated if stored else False,
+            "signed_at": stored.signed_at if stored else None,
+            "signed_by_uid": stored.signed_by_uid if stored else None,
+        }
+    )
 
     ref.update({"soap": soap.model_dump(mode="json"), "updated_at": now})
     rec = rec.model_copy(update={"soap": soap, "updated_at": now})
@@ -152,11 +166,40 @@ def render_pdf(recording_id: str, patient_id: str, user: TenantUserDep) -> Strea
     if rec.soap is None:
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="soap_not_ready")
 
-    # Clinic letterhead for the header.
+    # Clinic letterhead for the header — logo is embedded as base64 so it
+    # always renders into the PDF (no external links).
+    from app.services.letterhead_render import letterhead_context
+
     clinic_snap = _clinic_ref(db, user.org_id, user.active_clinic_id).get()
     clinic_data = clinic_snap.to_dict() if clinic_snap.exists else {}
-    letterhead = clinic_data.get("letterhead") if isinstance(clinic_data, dict) else None
-    clinic_name = (letterhead or {}).get("name") if isinstance(letterhead, dict) else None
+    letterhead_ctx = letterhead_context(user.org_id, user.active_clinic_id, clinic_data)
+
+    # Follow-up sheet engine: the patient's FIRST encounter prints on the
+    # branded primary letterhead; every later encounter prints on a plain
+    # continuation sheet with a subtle security watermark (saves letterhead
+    # stock and marks the page as part of an existing case file).
+    recs_col = (
+        _patient_ref(db, user.org_id, user.active_clinic_id, patient_id)
+        .collection("recordings")
+    )
+    first_snap = next(iter(recs_col.order_by("created_at").limit(1).stream()), None)
+    is_continuation = bool(first_snap and first_snap.id != recording_id)
+    continuation_of: Optional[str] = None
+    if is_continuation:
+        prev_snap = next(
+            iter(
+                recs_col.where("created_at", "<", rec.created_at.isoformat())
+                .order_by("created_at", direction="DESCENDING")
+                .limit(1)
+                .stream()
+            ),
+            None,
+        )
+        if prev_snap:
+            prev = prev_snap.to_dict() or {}
+            continuation_of = ((prev.get("soap") or {}).get("patient") or {}).get(
+                "encounter_date"
+            ) or (prev.get("created_at") or "")[:10]
 
     # Doctor profile for the signature block.
     user_snap = db.collection("users").document(user.uid).get()
@@ -173,8 +216,20 @@ def render_pdf(recording_id: str, patient_id: str, user: TenantUserDep) -> Strea
             assessment=rec.soap.assessment,
             plan=rec.soap.plan,
             transcript=(rec.transcript.text if rec.transcript else ""),
-            clinic={"letterhead": {"name": clinic_name or "Clinic"}},
-            doctor={"display_name": doctor_name, "credentials": doctor_credentials},
+            clinic={"letterhead": letterhead_ctx},
+            sheet="continuation" if is_continuation else "primary",
+            continuation_of=continuation_of,
+            watermark_text=(
+                f"{letterhead_ctx.get('name') or 'Clinic'} · case continuation"
+                if is_continuation
+                else None
+            ),
+            doctor={
+                "display_name": doctor_name,
+                "credentials": doctor_credentials,
+                "verified": (user_data or {}).get("verification_status") == "verified",
+                "registration_id": (user_data or {}).get("registration_id"),
+            },
             generated_at=utc_now().strftime("%Y-%m-%d %H:%M UTC"),
         )
     except Exception as e:

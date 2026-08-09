@@ -1,4 +1,5 @@
 import { Feather } from '@expo/vector-icons';
+import * as FileSystem from 'expo-file-system/legacy';
 import * as Sharing from 'expo-sharing';
 import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
@@ -121,6 +122,8 @@ export default function RecordingDetailScreen() {
       if (can) {
         await Sharing.shareAsync(uri, { mimeType: 'application/pdf', UTI: 'com.adobe.pdf' });
       }
+      // PDFs are always re-rendered server-side on demand — no local copy kept.
+      void FileSystem.deleteAsync(uri, { idempotent: true }).catch(() => {});
     } catch (e) {
       setPdfError(e instanceof Error ? e.message : 'Failed to generate PDF');
     } finally {
@@ -195,11 +198,6 @@ export default function RecordingDetailScreen() {
                 {entry.recording.duration_seconds ? (
                   <Text style={styles.headerMeta}>
                     {Math.round(entry.recording.duration_seconds)}s
-                  </Text>
-                ) : null}
-                {entry.recording.estimated_cost_usd != null ? (
-                  <Text style={styles.headerMeta}>
-                    {formatCost(entry.recording.estimated_cost_usd)}
                   </Text>
                 ) : null}
               </View>
@@ -283,12 +281,6 @@ export default function RecordingDetailScreen() {
       </ScrollView>
     </View>
   );
-}
-
-function formatCost(usd: number): string {
-  if (usd < 0.01) return `$${usd.toFixed(5)}`;
-  if (usd < 1) return `$${usd.toFixed(4)}`;
-  return `$${usd.toFixed(2)}`;
 }
 
 const makeStyles = (c: ThemeColors) => StyleSheet.create({

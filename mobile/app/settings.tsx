@@ -46,6 +46,57 @@ export default function SettingsScreen() {
       <ScrollView contentContainerStyle={styles.scroll}>
         <Text style={styles.pageTitle}>Settings</Text>
 
+        {/* Payments & plans — wallet top-ups, subscription tiers (Razorpay) */}
+        <Pressable
+          onPress={() => router.push('/payments' as never)}
+          accessibilityRole="button"
+          accessibilityLabel="Open payments and plans"
+          style={({ pressed }) => [styles.linkRow, { opacity: pressed ? 0.85 : 1 }]}
+        >
+          <View style={styles.linkIcon}>
+            <Feather name="credit-card" size={18} color={c.accent} />
+          </View>
+          <View style={{ flex: 1 }}>
+            <Text style={styles.linkLabel}>Payments & Plans</Text>
+            <Text style={styles.linkHint}>Wallet, subscriptions, and top-ups</Text>
+          </View>
+          <Feather name="chevron-right" size={20} color={c.textSubtle} />
+        </Pressable>
+
+        {/* Doctor verification — medical-council proof upload, verified PDF badge */}
+        <Pressable
+          onPress={() => router.push('/verification' as never)}
+          accessibilityRole="button"
+          accessibilityLabel="Open doctor verification"
+          style={({ pressed }) => [styles.linkRow, { opacity: pressed ? 0.85 : 1 }]}
+        >
+          <View style={styles.linkIcon}>
+            <Feather name="shield" size={18} color={c.accent} />
+          </View>
+          <View style={{ flex: 1 }}>
+            <Text style={styles.linkLabel}>Doctor Verification</Text>
+            <Text style={styles.linkHint}>Get the verified badge on your PDFs</Text>
+          </View>
+          <Feather name="chevron-right" size={20} color={c.textSubtle} />
+        </Pressable>
+
+        {/* Letterhead — clinic branding printed on every PDF */}
+        <Pressable
+          onPress={() => router.push('/letterhead' as never)}
+          accessibilityRole="button"
+          accessibilityLabel="Open letterhead settings"
+          style={({ pressed }) => [styles.linkRow, { opacity: pressed ? 0.85 : 1 }]}
+        >
+          <View style={styles.linkIcon}>
+            <Feather name="file-text" size={18} color={c.accent} />
+          </View>
+          <View style={{ flex: 1 }}>
+            <Text style={styles.linkLabel}>Letterhead</Text>
+            <Text style={styles.linkHint}>Clinic branding printed on every PDF</Text>
+          </View>
+          <Feather name="chevron-right" size={20} color={c.textSubtle} />
+        </Pressable>
+
         <View style={styles.card}>
           <View style={styles.tagPill}>
             <Text style={styles.tagPillText}>Appearance</Text>
@@ -148,6 +199,39 @@ const makeStyles = (c: ThemeColors) =>
       borderRadius: radii.sm,
     },
     segBtnActive: { backgroundColor: c.accent },
+    linkRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: space.md,
+      backgroundColor: c.surface,
+      borderRadius: radii.lg,
+      borderWidth: 1,
+      borderColor: c.border,
+      paddingHorizontal: space.lg,
+      paddingVertical: space.md + 2,
+    },
+    linkIcon: {
+      width: 36,
+      height: 36,
+      borderRadius: radii.sm,
+      backgroundColor: c.accentSoft,
+      borderWidth: 1,
+      borderColor: c.accentDim,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    linkLabel: {
+      fontFamily: fonts.displaySemi,
+      fontSize: font.size.base,
+      color: c.text,
+      letterSpacing: -0.2,
+    },
+    linkHint: {
+      fontFamily: fonts.display,
+      fontSize: font.size.xs,
+      color: c.textMuted,
+      marginTop: 2,
+    },
     segText: {
       fontFamily: fonts.displayBold,
       color: c.textMuted,

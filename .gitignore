@@ -45,3 +45,9 @@ firestore-debug.log
 
 # OS
 Thumbs.db
+firebase/hosting-dist/
+
+# Secrets — never commit
+backend/.env
+mobile/.env
+*firebase-adminsdk*.json

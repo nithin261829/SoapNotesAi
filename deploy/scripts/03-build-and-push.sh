@@ -8,7 +8,7 @@ cd "$(dirname "$0")"
 source ./env.sh
 require_cmd gcloud
 
-REPO_ROOT="$(git rev-parse --show-toplevel 2>/dev/null || cd ../.. && pwd)"
+REPO_ROOT="$(git rev-parse --show-toplevel 2>/dev/null || { cd ../.. && pwd; })"
 CONTEXT="${REPO_ROOT}/backend"
 
 # Pull app version from app/version.py (single source of truth).

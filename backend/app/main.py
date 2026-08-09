@@ -12,6 +12,14 @@ from app.interfaces.audio_to_soap import AudioToSoap
 from app.providers.fake_audio_to_soap import FakeAudioToSoap
 from app.routers import accounts as accounts_router
 from app.routers import audio as audio_router
+from app.routers import auth_otp as auth_otp_router
+from app.routers import billing as billing_router
+from app.routers import clinics as clinics_router
+from app.routers import documents as documents_router
+from app.routers import export as export_router
+from app.routers import verification as verification_router
+from app.routers import followups as followups_router
+from app.routers import internal as internal_router
 from app.routers import invites as invites_router
 from app.routers import patients as patients_router
 from app.routers import recordings as recordings_router
@@ -106,6 +114,14 @@ def create_app() -> FastAPI:
     app.include_router(invites_router.router, prefix=API_PREFIX)
     app.include_router(patients_router.router, prefix=API_PREFIX)
     app.include_router(recordings_router.router, prefix=API_PREFIX)
+    app.include_router(billing_router.router, prefix=API_PREFIX)
+    app.include_router(followups_router.router, prefix=API_PREFIX)
+    app.include_router(internal_router.router, prefix=API_PREFIX)
+    app.include_router(auth_otp_router.router, prefix=API_PREFIX)
+    app.include_router(export_router.router, prefix=API_PREFIX)
+    app.include_router(verification_router.router, prefix=API_PREFIX)
+    app.include_router(clinics_router.router, prefix=API_PREFIX)
+    app.include_router(documents_router.router, prefix=API_PREFIX)
 
     return app
 

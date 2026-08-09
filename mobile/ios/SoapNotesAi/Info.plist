@@ -28,7 +28,7 @@
         <key>CFBundleURLSchemes</key>
         <array>
           <string>soapnotesai</string>
-          <string>com.tensorlinkslabs.soapnotesai</string>
+          <string>com.soapnotesai.app</string>
         </array>
       </dict>
     </array>

@@ -2,6 +2,7 @@ import { Feather } from '@expo/vector-icons';
 import { Tabs, useRouter } from 'expo-router';
 import { Alert } from 'react-native';
 
+import { usePushRegistration } from '@/notifications/usePushRegistration';
 import { isRecordingActive, triggerDiscardRecording } from '@/recording/recordingFlag';
 import { useThemeColors } from '@/theme/ThemeContext';
 import { fonts } from '@/theme/fonts';
@@ -39,6 +40,8 @@ function makeBlocker(
 export default function TabsLayout() {
   const router = useRouter();
   const c = useThemeColors();
+  // Register this device for follow-up reminder pushes (no-op in Expo Go).
+  usePushRegistration();
   return (
     <Tabs
       screenOptions={{

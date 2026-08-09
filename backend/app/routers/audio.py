@@ -20,14 +20,16 @@ from pydantic import BaseModel
 import re
 import secrets
 
-from app.auth.deps import TenantUserDep
+from app.auth.deps import ClinicianDep
 from app.config import Settings, get_settings
 from app.interfaces.audio_to_soap import AudioToSoap, AudioToSoapError
 from app.models.common import utc_now
 from app.models.patient import Patient
 from app.models.recording import Recording, TranscriptDoc
+from app.models.usage import UsageRecord
 from app.models.soap import SoapNote
 from app.services import pipeline
+from app.services.billing_service import charge_note, check_note_allowance, release_note_slot
 from app.services.firestore import get_db
 from app.services.storage import upload_audio as upload_audio_to_gcs
 
@@ -69,13 +71,8 @@ class AudioUploadResponse(BaseModel):
     received_at: datetime
     transcript: str
     soap: SoapNote
-    provider: str
-    model_version: str
-    # Token usage + rough USD cost estimate from public pricing. Authoritative
-    # billing is in Google Cloud Console; this is for in-app visibility only.
-    prompt_tokens: int | None = None
-    output_tokens: int | None = None
-    estimated_cost_usd: float | None = None
+    # AI provider/model/tokens/cost are recorded server-side in the org's
+    # usage collection and are never returned to clients.
 
 
 # Gemini 2.5 Flash list pricing (update from https://cloud.google.com/vertex-ai/pricing).
@@ -114,7 +111,7 @@ def _get_audio_to_soap() -> AudioToSoap:
 )
 async def upload_audio(
     audio: Annotated[UploadFile, File(description="Audio file (m4a/mp4/wav/mp3/webm).")],
-    user: TenantUserDep,
+    user: ClinicianDep,
     patient_id: Annotated[
         str | None,
         Form(
@@ -199,6 +196,10 @@ async def upload_audio(
                     status_code=status.HTTP_404_NOT_FOUND, detail="patient_not_found"
                 )
 
+        # Billing gate BEFORE the AI call so refused requests cost nothing.
+        # Per-clinic billing; with app_config/billing.enforce=false this only logs.
+        allowance = check_note_allowance(user.org_id, user.active_clinic_id)
+
         recording_id = str(uuid.uuid4())
 
         # Run the audio → SOAP pipeline. The provider reads the audio bytes,
@@ -219,6 +220,8 @@ async def upload_audio(
                 recording_id,
                 e.code,
             )
+            # The note never happened — give back the reserved daily slot.
+            release_note_slot(user.org_id, allowance)
             raise HTTPException(
                 status_code=_status_for_provider_error(e.code),
                 detail=e.code,
@@ -278,14 +281,21 @@ async def upload_audio(
             )
         except Exception as e:
             logger.exception("audio_storage_upload_failed")
+            release_note_slot(user.org_id, allowance)
             raise HTTPException(
                 status_code=status.HTTP_502_BAD_GATEWAY, detail="storage_upload_failed"
             ) from e
 
         patient_ref = patients_col.document(patient_id)
         now = utc_now()
-        transcript_doc = TranscriptDoc(text=result.transcript, language="en")
+        transcript_doc = TranscriptDoc(text=result.transcript, language=result.language)
         est_cost = _estimate_cost_usd(result.prompt_tokens, result.output_tokens)
+        # Provenance stays server-side: clients can read the Recording doc via
+        # Firestore rules, so scrub AI metadata from the embedded SOAP before
+        # persisting and record it in the usage collection instead.
+        clean_soap = result.soap.model_copy(
+            update={"llm_provider": None, "llm_model_version": None}
+        )
         recording = Recording(
             org_id=user.org_id,
             clinic_id=user.active_clinic_id,
@@ -299,15 +309,31 @@ async def upload_audio(
             updated_at=now,
             status="completed",
             transcript=transcript_doc,
-            soap=result.soap,
+            soap=clean_soap,
+        )
+        patient_ref.collection("recordings").document(recording_id).set(
+            recording.model_dump(mode="json")
+        )
+        # Backend-only usage/cost accounting — denied to clients by rules.
+        usage = UsageRecord(
+            org_id=user.org_id,
+            clinic_id=user.active_clinic_id,
+            patient_id=patient_id,
+            recording_id=recording_id,
+            created_by_uid=user.uid,
+            created_at=now,
             ai_provider=result.provider,
             ai_model_version=result.model_version,
             prompt_tokens=result.prompt_tokens,
             output_tokens=result.output_tokens,
             estimated_cost_usd=est_cost,
         )
-        patient_ref.collection("recordings").document(recording_id).set(
-            recording.model_dump(mode="json")
+        (
+            db.collection("organizations")
+            .document(user.org_id)
+            .collection("usage")
+            .document(recording_id)
+            .set(usage.model_dump(mode="json"))
         )
         # Bump last-encounter sort key + denormalized recording count.
         from google.cloud.firestore_v1 import Increment
@@ -319,6 +345,9 @@ async def upload_audio(
                 "recording_count": Increment(1),
             }
         )
+
+        # Debit the wallet for payg notes (no-op for free tiers / enforce off).
+        charge_note(user.org_id, user.uid, recording_id, allowance)
 
         logger.info(
             "audio_processed id=%s bytes=%d mime=%s patient=%s",
@@ -338,12 +367,7 @@ async def upload_audio(
             client_duration_ms=client_duration_ms,
             received_at=now,
             transcript=result.transcript,
-            soap=result.soap,
-            provider=result.provider,
-            model_version=result.model_version,
-            prompt_tokens=result.prompt_tokens,
-            output_tokens=result.output_tokens,
-            estimated_cost_usd=est_cost,
+            soap=clean_soap,
         )
     finally:
         if os.path.exists(tmp_path):

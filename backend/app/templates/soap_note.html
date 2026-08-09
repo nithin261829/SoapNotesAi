@@ -88,6 +88,15 @@
       margin-top: 30pt; padding-top: 8pt; border-top: 1px dashed #999;
       display: flex; justify-content: space-between; font-size: 9.5pt;
     }
+    .verified-badge {
+      margin-top: 3pt; font-size: 8.5pt; color: #2e7d32; font-weight: 600;
+    }
+    .verified-chip {
+      display: inline-block; vertical-align: middle; margin-left: 5pt;
+      font-size: 6.5pt; font-weight: 700; letter-spacing: 1pt;
+      color: #2e7d32; border: 1px solid #2e7d32; border-radius: 3pt;
+      padding: 1pt 4pt;
+    }
     .transcript {
       margin-top: 20pt; padding-top: 10pt; border-top: 1px solid #ddd;
       font-size: 9pt; color: #444; page-break-before: always;
@@ -100,14 +109,54 @@
     .disclaimer {
       margin-top: 18pt; font-size: 8pt; color: #999; font-style: italic;
     }
+    .letterhead-left { display: flex; align-items: flex-start; gap: 10pt; }
+    .continuation-label {
+      font-size: 8pt; color: #777; letter-spacing: 1pt; margin-top: 2pt;
+      text-transform: uppercase; font-weight: 600;
+    }
+    /* Security watermark — position:fixed repeats on every page in WeasyPrint. */
+    .watermark {
+      position: fixed; top: 45%; left: 0; right: 0; text-align: center;
+      font-size: 34pt; font-weight: 700; letter-spacing: 2pt;
+      color: rgba(60, 60, 60, 0.07); transform: rotate(-24deg);
+    }
+    .letterhead-logo { max-height: 42pt; max-width: 120pt; object-fit: contain; }
+    .letterhead-tagline { font-size: 8.5pt; color: #555; font-style: italic; margin-top: 1pt; }
+    .letterhead-contact { font-size: 8pt; color: #555; margin-top: 2pt; }
   </style>
 </head>
 <body>
+  {% if watermark_text %}<div class="watermark" aria-hidden="true">{{ watermark_text }}</div>{% endif %}
   <header>
-    <div>
-      <div class="clinic-name">{{ clinic.letterhead.name }}</div>
-      <div style="font-size: 8.5pt; color: #666; margin-top: 2pt;">SOAP note · clinician draft</div>
+    {% if sheet == 'continuation' %}
+    <div class="letterhead-left">
+      <div>
+        <div class="clinic-name">{{ clinic.letterhead.name }}{% if doctor.verified %}<span class="verified-chip">VERIFIED</span>{% endif %}</div>
+        <div class="continuation-label">CONTINUATION SHEET{% if continuation_of %} · in continuation of visit dated {{ continuation_of }}{% endif %}</div>
+        <div style="font-size: 8.5pt; color: #666; margin-top: 2pt;">SOAP note · clinician draft</div>
+      </div>
     </div>
+    {% else %}
+    <div class="letterhead-left">
+      {% if clinic.letterhead.logo_data_uri %}
+      <img class="letterhead-logo" src="{{ clinic.letterhead.logo_data_uri }}" alt="">
+      {% endif %}
+      <div>
+        <div class="clinic-name">{{ clinic.letterhead.name }}{% if doctor.verified %}<span class="verified-chip">VERIFIED</span>{% endif %}</div>
+        {% if clinic.letterhead.tagline %}
+        <div class="letterhead-tagline">{{ clinic.letterhead.tagline }}</div>
+        {% endif %}
+        {% if clinic.letterhead.address_lines or clinic.letterhead.phone or clinic.letterhead.email %}
+        <div class="letterhead-contact">
+          {%- for line in clinic.letterhead.address_lines %}{{ line }}{% if not loop.last %} · {% endif %}{% endfor -%}
+          {%- if clinic.letterhead.phone %}{% if clinic.letterhead.address_lines %} · {% endif %}☎ {{ clinic.letterhead.phone }}{% endif -%}
+          {%- if clinic.letterhead.email %} · {{ clinic.letterhead.email }}{% endif -%}
+        </div>
+        {% endif %}
+        <div style="font-size: 8.5pt; color: #666; margin-top: 2pt;">SOAP note · clinician draft</div>
+      </div>
+    </div>
+    {% endif %}
     <div class="meta">
       Generated {{ generated_at }}<br>
       Encounter date: {{ patient.encounter_date }}
@@ -293,6 +342,9 @@
   <div class="signature">
     <div>
       Clinician: <strong>{{ doctor.display_name }}{% if doctor.credentials %}, {{ doctor.credentials }}{% endif %}</strong>
+      {% if doctor.verified %}
+      <div class="verified-badge">✓ Verified Doctor{% if doctor.registration_id %} · {{ doctor.registration_id }}{% endif %}</div>
+      {% endif %}
     </div>
     <div>Signature: ______________________________</div>
   </div>

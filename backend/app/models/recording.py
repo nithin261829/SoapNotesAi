@@ -62,9 +62,7 @@ class Recording(FirestoreModel):
     status: RecordingStatus = "uploaded"
     transcript: Optional[TranscriptDoc] = None
     soap: Optional[SoapNote] = None
-    ai_provider: Optional[str] = None  # internal — not surfaced to UI
-    ai_model_version: Optional[str] = None  # internal — not surfaced to UI
-    prompt_tokens: Optional[int] = None
-    output_tokens: Optional[int] = None
-    estimated_cost_usd: Optional[float] = None
+    # AI provider/model/token/cost data lives in organizations/{orgId}/usage —
+    # clients can read Recording docs directly, so nothing billing-related may
+    # appear here.
     error: Optional[RecordingError] = None

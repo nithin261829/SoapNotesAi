@@ -7,8 +7,9 @@
 
 import * as Google from 'expo-auth-session/providers/google';
 import * as WebBrowser from 'expo-web-browser';
-import { GoogleAuthProvider, signInWithCredential } from 'firebase/auth';
+import { GoogleAuthProvider, signInWithCredential, signInWithPopup } from 'firebase/auth';
 import { useCallback, useEffect, useState } from 'react';
+import { Platform } from 'react-native';
 
 import { firebaseAuth } from './firebase';
 
@@ -58,6 +59,20 @@ export function useGoogleSignIn(): GoogleSignInResult {
   }, [response]);
 
   const signIn = useCallback(async () => {
+    // Web: Firebase's popup flow works on the project's hosting domains with
+    // no OAuth-client redirect configuration (avoids redirect_uri_mismatch).
+    if (Platform.OS === 'web') {
+      setError(null);
+      setInProgress(true);
+      try {
+        await signInWithPopup(firebaseAuth, new GoogleAuthProvider());
+      } catch (e) {
+        setError(e instanceof Error ? e.message : 'Google sign-in failed');
+      } finally {
+        setInProgress(false);
+      }
+      return;
+    }
     if (!request) return;
     setError(null);
     setInProgress(true);

@@ -87,11 +87,20 @@ def tenant_user(
     user: Annotated[UserContext, Depends(current_user)],
 ) -> UserContext:
     """For endpoints that touch tenant data. 403s if the user hasn't been
-    provisioned into an org + active clinic yet."""
+    provisioned into an org + active clinic yet, or (when the OTP kill-switch
+    in app_config/auth is on) hasn't completed OTP verification."""
     if not user.org_id or not user.active_clinic_id:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="user_not_provisioned",
+        )
+    # Imported here to avoid a circular import at module load.
+    from app.services.otp import is_otp_verified, otp_required
+
+    if otp_required() and not is_otp_verified(user.uid):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="otp_verification_required",
         )
     return user
 
@@ -107,6 +116,20 @@ def require_owner(
     return user
 
 
+def require_clinician(
+    user: Annotated[UserContext, Depends(tenant_user)],
+) -> UserContext:
+    """Owner/admin/doctor only. Staff ("viewer") accounts are restricted to
+    reading patients/recordings, printing PDFs, and follow-up logging — they
+    cannot create or edit clinical notes or patient records."""
+    if user.role not in ("owner", "admin", "doctor"):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="clinician_role_required",
+        )
+    return user
+
+
 def _str_or_none(v: object) -> Optional[str]:
     return v if isinstance(v, str) and v else None
 
@@ -114,3 +137,4 @@ def _str_or_none(v: object) -> Optional[str]:
 CurrentUserDep = Annotated[UserContext, Depends(current_user)]
 TenantUserDep = Annotated[UserContext, Depends(tenant_user)]
 OwnerDep = Annotated[UserContext, Depends(require_owner)]
+ClinicianDep = Annotated[UserContext, Depends(require_clinician)]

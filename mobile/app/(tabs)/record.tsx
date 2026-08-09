@@ -1,4 +1,5 @@
 import { Feather } from '@expo/vector-icons';
+import * as FileSystem from 'expo-file-system/legacy';
 import * as Sharing from 'expo-sharing';
 import { useLocalSearchParams, useNavigation, useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -23,6 +24,7 @@ import {
 } from '@/api/recordings';
 import { useAuth } from '@/auth/AuthContext';
 import { BrandLogo } from '@/components/BrandLogo';
+import { GreetingBanner } from '@/components/GreetingBanner';
 import { LevelMeter } from '@/components/LevelMeter';
 import { MicButton } from '@/components/MicButton';
 import { ProcessingSteps, type SubStep, type SubStepStatus } from '@/components/ProcessingSteps';
@@ -162,6 +164,8 @@ export default function RecordScreen() {
       if (can) {
         await Sharing.shareAsync(uri, { mimeType: 'application/pdf', UTI: 'com.adobe.pdf' });
       }
+      // PDFs are always re-rendered server-side on demand — no local copy kept.
+      void FileSystem.deleteAsync(uri, { idempotent: true }).catch(() => {});
     } catch (e) {
       const msg =
         e instanceof UploadError
@@ -303,6 +307,10 @@ export default function RecordScreen() {
         },
       });
       setProcessing({ phase: 'done', uploadFraction: 1, result, errorMessage: null });
+      // Nothing PHI stays on the device: the canonical audio now lives in
+      // cloud storage, so drop the local capture file. Kept on failure so
+      // RETRY can re-upload.
+      void FileSystem.deleteAsync(state.fileUri, { idempotent: true }).catch(() => {});
     } catch (e) {
       const message =
         e instanceof UploadError
@@ -407,6 +415,7 @@ export default function RecordScreen() {
       contentContainerStyle={[styles.container, { paddingTop: insets.top + 12 }]}
     >
       <BrandLogo />
+      {state.status === 'idle' && processing.phase === 'idle' ? <GreetingBanner /> : null}
       {/* In-content top row — back button (when needed) + REC pill (when active) */}
       {(mode !== 'idle' || isRec || isPaused) ? (
         <View style={styles.topRow}>
@@ -584,9 +593,6 @@ export default function RecordScreen() {
               </View>
               <View style={styles.divider} />
               <ProcessingSteps steps={steps} />
-              {processing.phase === 'done' && processing.result ? (
-                <CostRow result={processing.result} />
-              ) : null}
               {processing.phase === 'failed' ? (
                 <Pressable
                   onPress={() => void onStartProcessing()}
@@ -812,36 +818,6 @@ function MetaCell({ label, value }: { label: string; value: string }) {
       <Text style={styles.metaCellValue}>{value}</Text>
     </View>
   );
-}
-
-function CostRow({ result }: { result: AudioUploadResponse }) {
-  const styles = useStyles(makeStyles);
-  const inTok = result.prompt_tokens;
-  const outTok = result.output_tokens;
-  const cost = result.estimated_cost_usd;
-  if (inTok == null && outTok == null && cost == null) return null;
-  return (
-    <View style={styles.costRow}>
-      <View style={styles.metaCell}>
-        <Text style={styles.metaCellLabel}>Input tokens</Text>
-        <Text style={styles.metaCellValue}>{inTok != null ? inTok.toLocaleString() : '—'}</Text>
-      </View>
-      <View style={styles.metaCell}>
-        <Text style={styles.metaCellLabel}>Output tokens</Text>
-        <Text style={styles.metaCellValue}>{outTok != null ? outTok.toLocaleString() : '—'}</Text>
-      </View>
-      <View style={styles.metaCell}>
-        <Text style={styles.metaCellLabel}>Est. cost</Text>
-        <Text style={styles.metaCellValue}>{cost != null ? formatCost(cost) : '—'}</Text>
-      </View>
-    </View>
-  );
-}
-
-function formatCost(usd: number): string {
-  if (usd < 0.01) return `$${usd.toFixed(5)}`;
-  if (usd < 1) return `$${usd.toFixed(4)}`;
-  return `$${usd.toFixed(2)}`;
 }
 
 function buildSteps(processing: ProcessingState): SubStep[] {

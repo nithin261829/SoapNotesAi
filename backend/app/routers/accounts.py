@@ -13,7 +13,7 @@ import re
 import secrets
 import uuid
 from datetime import datetime, timedelta, timezone
-from typing import Annotated, Optional
+from typing import Annotated, Literal, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from firebase_admin import auth as fb_auth
@@ -53,6 +53,12 @@ class ClinicSwitchRequest(BaseModel):
     clinic_id: str = Field(min_length=1)
 
 
+class PushTokenRequest(BaseModel):
+    token: str = Field(min_length=8, max_length=4096)
+    # "expo" (Expo push service, relays via FCM/APNs) or "fcm" (raw FCM token).
+    token_type: Literal["expo", "fcm"] = "expo"
+
+
 class MeResponse(BaseModel):
     profile: UserProfile
     org_name: Optional[str] = None
@@ -74,6 +80,22 @@ def _set_tenancy_claims(uid: str, *, org_id: str, active_clinic_id: str, role: s
         uid,
         {"org_id": org_id, "active_clinic_id": active_clinic_id, "role": role},
     )
+
+
+def _next_registration_id(db: gcf.Client) -> str:
+    """Permanent unique doctor id, e.g. "SNA-00042". Transactional counter at
+    app_config/counters so ids are never duplicated or reused."""
+    counter_ref = db.collection("app_config").document("counters")
+    transaction = db.transaction()
+
+    @gcf.transactional
+    def _txn(txn) -> int:
+        snap = counter_ref.get(transaction=txn)
+        current = int((snap.to_dict() or {}).get("registration_seq") or 0) if snap.exists else 0
+        txn.set(counter_ref, {"registration_seq": current + 1}, merge=True)
+        return current + 1
+
+    return f"SNA-{_txn(transaction):05d}"
 
 
 def _require_unprovisioned(user: UserContext, db: gcf.Client) -> None:
@@ -168,6 +190,7 @@ def signup_org(body: CreateOrgRequest, user: CurrentUserDep) -> UserProfile:
         email=user.email,
         display_name=body.display_name,
         credentials=body.credentials,
+        registration_id=_next_registration_id(db),
         org_id=org_id,
         default_clinic_id=clinic_id,
         memberships=[ClinicMembership(clinic_id=clinic_id, role="owner", joined_at=now)],
@@ -244,6 +267,7 @@ def signup_invite(code: str, body: JoinInviteRequest, user: CurrentUserDep) -> U
         email=user.email,
         display_name=body.display_name,
         credentials=body.credentials,
+        registration_id=_next_registration_id(db),
         org_id=org_id,
         default_clinic_id=clinic_id,
         memberships=[ClinicMembership(clinic_id=clinic_id, role=role, joined_at=now)],
@@ -260,6 +284,20 @@ def signup_invite(code: str, body: JoinInviteRequest, user: CurrentUserDep) -> U
 
     logger.info("signup_invite uid=%s org=%s clinic=%s role=%s", user.uid, org_id, clinic_id, role)
     return profile
+
+
+@router.post("/push-token", status_code=status.HTTP_204_NO_CONTENT)
+def register_push_token(body: PushTokenRequest, user: TenantUserDep) -> None:
+    """Store the device push token for follow-up reminders."""
+    db = get_db()
+    db.collection("users").document(user.uid).update(
+        {
+            "push_token": body.token,
+            "push_token_type": body.token_type,
+            "updated_at": utc_now(),
+        }
+    )
+    logger.info("push_token_registered uid=%s type=%s", user.uid, body.token_type)
 
 
 @router.post(

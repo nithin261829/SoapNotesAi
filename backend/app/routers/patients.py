@@ -10,7 +10,7 @@ from typing import Optional
 from fastapi import APIRouter, HTTPException, status
 from pydantic import BaseModel, Field
 
-from app.auth.deps import TenantUserDep
+from app.auth.deps import ClinicianDep, TenantUserDep
 from app.models.common import utc_now
 from app.models.patient import Patient, Sex
 from app.services.firestore import get_db
@@ -25,6 +25,7 @@ class CreatePatientRequest(BaseModel):
     date_of_birth: Optional[date] = None
     age_at_record: Optional[int] = Field(None, ge=0, le=130)
     sex: Optional[Sex] = None
+    phone: Optional[str] = Field(None, max_length=20)
 
 
 class PatientResponse(BaseModel):
@@ -46,7 +47,7 @@ def _clinic_ref(db, org_id: str, clinic_id: str):
 
 
 @router.post("", status_code=status.HTTP_201_CREATED, response_model=PatientResponse)
-def create_patient(body: CreatePatientRequest, user: TenantUserDep) -> PatientResponse:
+def create_patient(body: CreatePatientRequest, user: ClinicianDep) -> PatientResponse:
     db = get_db()
     pid = _patient_id(body.name)
     now = utc_now()
@@ -58,6 +59,7 @@ def create_patient(body: CreatePatientRequest, user: TenantUserDep) -> PatientRe
         age_at_record=body.age_at_record,
         age_recorded_at=now if body.age_at_record is not None else None,
         sex=body.sex,
+        phone=body.phone,
         created_by_uid=user.uid,
         created_at=now,
         updated_at=now,
@@ -121,11 +123,12 @@ class PatchPatientRequest(BaseModel):
     name: Optional[str] = Field(None, min_length=1, max_length=160)
     age_at_record: Optional[int] = Field(None, ge=0, le=130)
     sex: Optional[Sex] = None
+    phone: Optional[str] = Field(None, max_length=20)
 
 
 @router.patch("/{patient_id}", response_model=PatientResponse)
 def patch_patient(
-    patient_id: str, body: PatchPatientRequest, user: TenantUserDep
+    patient_id: str, body: PatchPatientRequest, user: ClinicianDep
 ) -> PatientResponse:
     db = get_db()
     ref = (
@@ -145,6 +148,8 @@ def patch_patient(
         patch["age_recorded_at"] = utc_now()
     if body.sex is not None:
         patch["sex"] = body.sex
+    if body.phone is not None:
+        patch["phone"] = body.phone.strip()
     ref.update(patch)
 
     updated = Patient.model_validate(ref.get().to_dict())

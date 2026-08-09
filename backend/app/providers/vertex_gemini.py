@@ -26,11 +26,20 @@ from app.models.soap import SoapNote
 logger = logging.getLogger(__name__)
 
 
-_PROMPT_TEMPLATE = """You are a medical scribe assistant. The doctor has provided an audio recording of a patient encounter.
+_PROMPT_TEMPLATE = """You are a medical scribe assistant for clinics in India. The doctor has provided an audio recording of a patient encounter.
 
 YOUR TASK:
 1. TRANSCRIBE the audio verbatim into the `transcript` field.
 2. EXTRACT a structured SOAP note from the transcript into the `soap` field.
+
+LANGUAGE HANDLING — dictations are multilingual (English, Hindi, Telugu, Kannada, and mid-sentence code-switching between them is normal):
+- Transcribe VERBATIM in the language(s) actually spoken. Write Indic speech in its native script (Devanagari for Hindi, Telugu script, Kannada script); keep English words in Latin script exactly as spoken. Never translate the transcript.
+- Set the top-level `language` field to the dominant spoken language as a BCP-47 code: "en", "hi", "te", "kn" — or "mixed" when no single language dominates.
+- The SOAP note itself must ALWAYS be written in formal clinical English, whatever language was spoken.
+- Map colloquial/vernacular complaints to standard clinical terminology in the SOAP note (examples: "bukhaar" → fever; "chakkar aana" → dizziness; "kamar dard" → low back pain; "saans phoolna" → dyspnea on exertion; "sugar" → diabetes mellitus; "BP problem" → hypertension; "గుండె నొప్పి" → chest pain; "ಮಂಡಿ ನೋವು" → knee pain). If a vernacular term is clinically ambiguous, keep the patient's own words in quotes within the relevant field instead of guessing a diagnosis.
+- Expect Indian English accents and Indian number conventions: convert spoken numbers to digits ("dedh sau" → 150, "sava sau" → 125, "one and a half lakh" → 150000 where clinically relevant).
+- Drug names may be pronounced with local phonology; write the standard spelling ONLY when unambiguous — otherwise transcribe as heard and do not normalize.
+- Units follow Indian clinical convention (kg, cm, mmHg; temperature as stated in °C or °F, converted to °C for the vitals field only when the unit was explicitly stated).
 
 CRITICAL SAFETY RULES — VIOLATING THESE COULD HARM A PATIENT:
 - EXTRACT ONLY content present in the audio. NEVER invent vitals, diagnoses, dosages, findings, or any clinical content.
@@ -47,6 +56,7 @@ RESPONSE FORMAT — return ONLY this JSON object, no markdown fences, no comment
 
 {{
   "transcript": "verbatim transcription of the audio",
+  "language": "en",
   "soap": {{
     "patient": {{
       "name": "string",
@@ -202,6 +212,11 @@ class VertexGeminiAudioToSoap:
         if not isinstance(transcript, str):
             raise AudioToSoapError("invalid_json", "transcript field was not a string")
 
+        language = data.get("language")
+        if not isinstance(language, str) or not language.strip():
+            language = "en"
+        language = language.strip()[:16]
+
         try:
             soap = SoapNote.model_validate(data["soap"])
         except ValidationError as e:
@@ -236,6 +251,7 @@ class VertexGeminiAudioToSoap:
 
         return AudioToSoapResult(
             transcript=transcript,
+            language=language,
             soap=soap,
             provider=self.PROVIDER_NAME,
             model_version=self._model_name,

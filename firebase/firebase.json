@@ -3,6 +3,12 @@
     "rules": "firestore.rules",
     "indexes": "firestore.indexes.json"
   },
+  "hosting": {
+    "public": "hosting-dist",
+    "ignore": ["firebase.json", "**/.*"],
+    "cleanUrls": true,
+    "rewrites": [{ "source": "**", "destination": "/index.html" }]
+  },
   "_comment_storage": "Cloud Storage section intentionally omitted — local-files-only v1. storage.rules is preserved for the future cloud-mode flip; restore the {\"storage\": {\"rules\": \"storage.rules\"}} block then.",
   "emulators": {
     "auth": { "port": 9099 },

@@ -1,6 +1,7 @@
 import {
   createUserWithEmailAndPassword,
   type AuthError,
+  sendPasswordResetEmail,
   signInWithEmailAndPassword,
 } from 'firebase/auth';
 import { useState } from 'react';
@@ -33,6 +34,22 @@ export default function SignInScreen() {
   const [password, setPassword] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [resetSent, setResetSent] = useState(false);
+
+  const onForgotPassword = async () => {
+    const addr = email.trim();
+    if (!addr || !addr.includes('@')) {
+      setError('Enter your email above first, then tap "Forgot password?".');
+      return;
+    }
+    setError(null);
+    try {
+      await sendPasswordResetEmail(firebaseAuth, addr);
+      setResetSent(true);
+    } catch (e) {
+      setError(humanizeAuthError(e));
+    }
+  };
 
   const submitDisabled = submitting || email.trim().length < 3 || password.length < 6;
 
@@ -130,6 +147,26 @@ export default function SignInScreen() {
               onSubmitEditing={() => void onSubmit()}
             />
           </View>
+
+          {mode === 'signin' ? (
+            <Pressable
+              accessibilityRole="link"
+              onPress={() => void onForgotPassword()}
+              hitSlop={8}
+              style={{ alignSelf: 'flex-end' }}
+            >
+              <Text style={styles.forgotLink}>Forgot password?</Text>
+            </Pressable>
+          ) : null}
+
+          {resetSent ? (
+            <View style={styles.resetBox}>
+              <Text style={styles.resetText}>
+                Password-reset email sent to {email.trim()}. Check your inbox (and spam folder),
+                set a new password, then sign in here.
+              </Text>
+            </View>
+          ) : null}
 
           {error ? (
             <View style={styles.errorBox}>
@@ -363,6 +400,25 @@ const makeStyles = (c: ThemeColors) => StyleSheet.create({
   errorText: {
     fontFamily: fonts.display,
     color: c.danger,
+    fontSize: font.size.sm,
+    lineHeight: 19,
+  },
+  forgotLink: {
+    fontFamily: fonts.displaySemi,
+    color: c.accent,
+    fontSize: font.size.sm,
+    marginTop: -4,
+  },
+  resetBox: {
+    backgroundColor: c.accentSoft,
+    borderWidth: 1,
+    borderColor: c.accentDim,
+    borderRadius: radii.md,
+    padding: space.md,
+  },
+  resetText: {
+    fontFamily: fonts.display,
+    color: c.text,
     fontSize: font.size.sm,
     lineHeight: 19,
   },

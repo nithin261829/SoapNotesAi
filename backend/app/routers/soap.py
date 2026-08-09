@@ -59,6 +59,11 @@ def generate_soap_pdf(body: GeneratePdfRequest) -> StreamingResponse:
             doctor={
                 "display_name": body.doctor_name or "—",
                 "credentials": body.doctor_credentials,
+                # Stateless endpoint — no auth dep, so the caller's verification
+                # status can't be looked up. Verified badge only appears on the
+                # authenticated /recordings/{id}/pdf render path.
+                "verified": False,
+                "registration_id": None,
             },
             generated_at=_human_time(utc_now()),
         )

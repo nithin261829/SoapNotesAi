@@ -41,6 +41,13 @@ class Settings(BaseSettings):
         "vertex_gemini", alias="AUDIO_TO_SOAP_PROVIDER"
     )
 
+    # Razorpay payment gateway. Endpoints 503 with `payments_not_configured`
+    # until key id + secret are set. The key secret and webhook secret must
+    # never be shipped to clients — only key_id is public.
+    razorpay_key_id: str = Field("", alias="RAZORPAY_KEY_ID")
+    razorpay_key_secret: str = Field("", alias="RAZORPAY_KEY_SECRET")
+    razorpay_webhook_secret: str = Field("", alias="RAZORPAY_WEBHOOK_SECRET")
+
     # App.
     app_env: Literal["development", "production", "test"] = Field("development", alias="APP_ENV")
     log_level: str = Field("INFO", alias="LOG_LEVEL")

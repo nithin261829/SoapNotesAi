@@ -12,6 +12,7 @@ export interface Patient {
   age_at_record: number | null;
   age_recorded_at: string | null;
   sex: PatientSex | null;
+  phone: string | null;
   created_by_uid: string;
   created_at: string;
   updated_at: string;
@@ -44,11 +45,6 @@ export interface Recording {
   status: string;
   transcript: TranscriptDoc | null;
   soap: SoapNote | null;
-  ai_provider: string | null;
-  ai_model_version: string | null;
-  prompt_tokens: number | null;
-  output_tokens: number | null;
-  estimated_cost_usd: number | null;
 }
 
 export interface RecordingEntry {
@@ -100,6 +96,7 @@ export interface CreatePatientParams {
   date_of_birth?: string;
   age_at_record?: number;
   sex?: PatientSex;
+  phone?: string;
 }
 
 export async function createPatient(
@@ -125,6 +122,7 @@ export interface PatchPatientParams {
   name?: string;
   age_at_record?: number;
   sex?: PatientSex;
+  phone?: string;
 }
 
 export async function patchPatient(

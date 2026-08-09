@@ -27,6 +27,9 @@ class AudioToSoapResult:
     soap: SoapNote
     provider: str
     model_version: str
+    # Dominant spoken language of the dictation (BCP-47: en/hi/te/kn, or
+    # "mixed"). The SOAP note itself is always formal clinical English.
+    language: str = "en"
     # Token usage reported by the provider, used to compute cost on the client.
     # None when the provider doesn't expose usage (e.g. fake provider).
     prompt_tokens: int | None = None

@@ -21,6 +21,8 @@ export interface UserProfile {
   email: string;
   display_name: string | null;
   credentials: string | null;
+  registration_id: string | null;
+  phone: string | null;
   org_id: string;
   default_clinic_id: string | null;
   memberships: ClinicMembership[];

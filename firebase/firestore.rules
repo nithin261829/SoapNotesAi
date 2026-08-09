@@ -18,6 +18,18 @@ service cloud.firestore {
       return isAuthed() && request.auth.token.role == 'owner';
     }
 
+    // Staff ("viewer") accounts read + print only; clinical writes need a
+    // clinician role. Mirrors the backend's require_clinician dependency.
+    function isClinician() {
+      return isAuthed() && request.auth.token.role in ['owner', 'admin', 'doctor'];
+    }
+
+    // ─── Backend runtime config (payment keys etc.) ────────────────
+    // Read/written ONLY by the backend via Admin SDK. Never client-readable.
+    match /app_config/{doc} {
+      allow read, write: if false;
+    }
+
     // ─── Global user profiles ──────────────────────────────────────
     // One doc per Firebase user at users/{uid} with their memberships.
     // Writes happen through the backend (Admin SDK); clients read their own.
@@ -44,10 +56,12 @@ service cloud.firestore {
         }
 
         match /patients/{patientId} {
-          allow read, write: if activeClinic(orgId, clinicId);
+          allow read: if activeClinic(orgId, clinicId);
+          allow write: if activeClinic(orgId, clinicId) && isClinician();
 
           match /recordings/{recordingId} {
-            allow read, write: if activeClinic(orgId, clinicId);
+            allow read: if activeClinic(orgId, clinicId);
+            allow write: if activeClinic(orgId, clinicId) && isClinician();
           }
         }
 
@@ -62,6 +76,29 @@ service cloud.firestore {
       match /audit/{eventId} {
         allow read:  if orgMatch(orgId) && isOrgOwner();
         allow write: if false;
+      }
+
+      // AI usage + cost accounting — backend-only. Cost data must NEVER be
+      // readable by clients.
+      match /usage/{recordingId} {
+        allow read, write: if false;
+      }
+
+      // Wallet balance + subscription state: org owner can read; all writes
+      // go through the backend (Razorpay verification).
+      match /billing/{docId} {
+        allow read:  if orgMatch(orgId) && isOrgOwner();
+        allow write: if false;
+
+        match /transactions/{txId} {
+          allow read:  if orgMatch(orgId) && isOrgOwner();
+          allow write: if false;
+        }
+      }
+
+      // Razorpay payment orders — backend-only (contain gateway internals).
+      match /payments/{orderId} {
+        allow read, write: if false;
       }
 
       // Invite codes for joining the org

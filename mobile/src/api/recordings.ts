@@ -19,11 +19,6 @@ export interface AudioUploadResponse {
   received_at: string;
   transcript: string;
   soap: SoapNote;
-  provider: string;
-  model_version: string;
-  prompt_tokens: number | null;
-  output_tokens: number | null;
-  estimated_cost_usd: number | null;
 }
 
 export interface GeneratePdfParams {

@@ -32,6 +32,12 @@ class UserProfile(FirestoreModel):
     email: EmailStr
     display_name: Optional[str] = None
     credentials: Optional[str] = None
+    # Permanent unique doctor registration id (e.g. "SNA-00042"), assigned
+    # once at signup from the global counter. Printed on PDFs and shown in
+    # the profile; never reused or reassigned.
+    registration_id: Optional[str] = None
+    # Registered phone for OTP delivery + SMS alerts.
+    phone: Optional[str] = None
     org_id: str
     default_clinic_id: Optional[str] = None
     memberships: list[ClinicMembership] = Field(default_factory=list)

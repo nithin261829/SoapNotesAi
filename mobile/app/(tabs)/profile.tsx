@@ -51,6 +51,11 @@ export default function ProfileScreen() {
         {profile?.profile.credentials ? (
           <Text style={styles.credentials}>{profile.profile.credentials}</Text>
         ) : null}
+        {profile?.profile.registration_id ? (
+          <Text style={styles.registrationId}>
+            Doctor ID: {profile.profile.registration_id}
+          </Text>
+        ) : null}
       </View>
 
       {profile ? (
@@ -190,6 +195,12 @@ const makeStyles = (c: ThemeColors) =>
       fontSize: font.size.xs,
       color: c.accent,
       letterSpacing: 0.8,
+    },
+    registrationId: {
+      fontFamily: fonts.displaySemi,
+      fontSize: font.size.xs,
+      color: c.textMuted,
+      letterSpacing: 0.4,
     },
     orgName: {
       fontFamily: fonts.displayBold,

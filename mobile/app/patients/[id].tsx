@@ -1,9 +1,12 @@
 import { Feather } from '@expo/vector-icons';
+import * as DocumentPicker from 'expo-document-picker';
 import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
 import {
   ActivityIndicator,
+  Alert,
   KeyboardAvoidingView,
+  Linking,
   Modal,
   Platform,
   Pressable,
@@ -15,6 +18,19 @@ import {
   View,
 } from 'react-native';
 
+import {
+  deleteDocument,
+  getDocumentUrl,
+  listDocuments,
+  uploadDocument,
+  type DocumentEntry,
+} from '@/api/documents';
+import {
+  createFollowup,
+  listFollowups,
+  patchFollowup,
+  type FollowupEntry,
+} from '@/api/followups';
 import {
   getPatient,
   listRecordings,
@@ -171,6 +187,12 @@ export default function PatientDetailScreen() {
           </View>
         ) : null}
 
+        {patient ? (
+          <FollowupCard patientId={patientId} phone={patient.patient.phone} />
+        ) : null}
+
+        {patient ? <DocumentsCard patientId={patientId} /> : null}
+
         <View style={styles.sectionHeader}>
           <Text style={styles.sectionTitle}>Encounters</Text>
           <Text style={styles.sectionCount}>{recordings.length}</Text>
@@ -224,14 +246,6 @@ export default function PatientDetailScreen() {
                           <Text style={styles.metaSmall}>
                             {fmtDurationSec(r.recording.duration_seconds)}
                           </Text>
-                        ) : null}
-                        {r.recording.estimated_cost_usd != null ? (
-                          <>
-                            <Text style={[styles.metaSmall, styles.statusDot]}>•</Text>
-                            <Text style={styles.metaSmall}>
-                              {fmtCost(r.recording.estimated_cost_usd)}
-                            </Text>
-                          </>
                         ) : null}
                         <Text style={[styles.metaSmall, styles.statusDot]}>•</Text>
                         <Text style={styles.metaSmall}>{r.recording.status}</Text>
@@ -297,12 +311,6 @@ function fmtDurationSec(s: number): string {
   return `${m}:${String(r).padStart(2, '0')}`;
 }
 
-function fmtCost(usd: number): string {
-  if (usd < 0.01) return `$${usd.toFixed(5)}`;
-  if (usd < 1) return `$${usd.toFixed(4)}`;
-  return `$${usd.toFixed(2)}`;
-}
-
 function lastVisitShort(iso: string | null): string {
   if (!iso) return 'Never';
   const d = new Date(iso);
@@ -351,6 +359,335 @@ function groupRecordingsByDate(
   return [...byKey.values()].sort((a, b) => a.sortKey - b.sortKey);
 }
 
+function FollowupCard({ patientId, phone }: { patientId: string; phone: string | null }) {
+  const c = useThemeColors();
+  const styles = useStyles(makeStyles);
+  const { getIdToken } = useAuth();
+  const [items, setItems] = useState<FollowupEntry[]>([]);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const load = useCallback(async () => {
+    try {
+      const token = await getIdToken();
+      setItems(await listFollowups(token, patientId));
+    } catch {
+      /* follow-ups are non-critical; keep the card quiet on load errors */
+    }
+  }, [getIdToken, patientId]);
+
+  useEffect(() => {
+    void load();
+  }, [load]);
+
+  const schedule = async (days: number) => {
+    if (busy) return;
+    setBusy(true);
+    setError(null);
+    try {
+      const due = new Date();
+      due.setDate(due.getDate() + days);
+      // Format in LOCAL time — toISOString() is UTC and stores yesterday's
+      // date for IST users between midnight and 05:29.
+      const dueDate = `${due.getFullYear()}-${String(due.getMonth() + 1).padStart(2, '0')}-${String(
+        due.getDate(),
+      ).padStart(2, '0')}`;
+      const token = await getIdToken();
+      const entry = await createFollowup(token, {
+        patient_id: patientId,
+        due_date: dueDate,
+      });
+      setItems((prev) => [...prev, entry].sort((a, b) => a.followup.due_date.localeCompare(b.followup.due_date)));
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Failed to schedule follow-up');
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const markDone = async (id: string) => {
+    try {
+      const token = await getIdToken();
+      await patchFollowup(token, id, { status: 'done' });
+      setItems((prev) => prev.filter((f) => f.id !== id));
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Failed to update follow-up');
+    }
+  };
+
+  return (
+    <View style={styles.followupCard}>
+      <View style={styles.followupHeader}>
+        <Text style={styles.sectionTitle}>Follow-ups</Text>
+        {phone ? (
+          <Pressable
+            onPress={() => void Linking.openURL(`tel:${phone}`)}
+            style={({ pressed }) => [styles.callBtn, { opacity: pressed ? 0.7 : 1 }]}
+            accessibilityRole="button"
+            accessibilityLabel="Call patient"
+          >
+            <Feather name="phone" size={13} color={c.accent} />
+            <Text style={styles.callBtnText}>CALL</Text>
+          </Pressable>
+        ) : null}
+      </View>
+
+      {items.length === 0 ? (
+        <Text style={styles.followupEmpty}>
+          No follow-up scheduled. Reminders notify your clinic the day before and day of
+          (Standard/Premium plans).
+        </Text>
+      ) : (
+        items.map((f) => (
+          <View key={f.id} style={styles.followupRow}>
+            <Feather name="calendar" size={15} color={c.accent} />
+            <View style={{ flex: 1 }}>
+              <Text style={styles.followupDate}>
+                {new Date(`${f.followup.due_date}T00:00:00`).toLocaleDateString(undefined, {
+                  weekday: 'short',
+                  month: 'short',
+                  day: 'numeric',
+                })}
+              </Text>
+              {f.followup.note ? <Text style={styles.followupNote}>{f.followup.note}</Text> : null}
+            </View>
+            <Pressable
+              onPress={() => void markDone(f.id)}
+              style={({ pressed }) => [styles.doneBtn, { opacity: pressed ? 0.7 : 1 }]}
+              accessibilityRole="button"
+              accessibilityLabel="Mark follow-up done"
+            >
+              <Feather name="check" size={14} color={c.textMuted} />
+            </Pressable>
+          </View>
+        ))
+      )}
+
+      <View style={styles.followupPresets}>
+        {[
+          { label: '+1 WEEK', days: 7 },
+          { label: '+2 WEEKS', days: 14 },
+          { label: '+1 MONTH', days: 30 },
+        ].map((p) => (
+          <Pressable
+            key={p.days}
+            onPress={() => void schedule(p.days)}
+            disabled={busy}
+            style={({ pressed }) => [
+              styles.presetChip,
+              { opacity: busy ? 0.5 : pressed ? 0.75 : 1 },
+            ]}
+          >
+            <Text style={styles.presetChipText}>{p.label}</Text>
+          </Pressable>
+        ))}
+      </View>
+      {error ? <Text style={styles.errorText}>{error}</Text> : null}
+    </View>
+  );
+}
+
+const MAX_DOCUMENT_BYTES = 20 * 1024 * 1024; // 20 MB — mirrors the backend cap
+
+function documentMimeType(name: string | null, picked: string | null): string | null {
+  const allowed = ['application/pdf', 'image/jpeg', 'image/png'];
+  if (picked && allowed.includes(picked)) return picked;
+  const lower = (name ?? '').toLowerCase();
+  if (lower.endsWith('.pdf')) return 'application/pdf';
+  if (lower.endsWith('.jpg') || lower.endsWith('.jpeg')) return 'image/jpeg';
+  if (lower.endsWith('.png')) return 'image/png';
+  return null;
+}
+
+function DocumentsCard({ patientId }: { patientId: string }) {
+  const c = useThemeColors();
+  const styles = useStyles(makeStyles);
+  const { getIdToken } = useAuth();
+  const [items, setItems] = useState<DocumentEntry[]>([]);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const load = useCallback(async () => {
+    try {
+      const token = await getIdToken();
+      setItems(await listDocuments(token, patientId));
+    } catch {
+      /* documents are non-critical; keep the card quiet on load errors */
+    }
+  }, [getIdToken, patientId]);
+
+  useEffect(() => {
+    void load();
+  }, [load]);
+
+  const doUpload = async (
+    asset: { uri: string; name: string },
+    mimeType: string,
+    label?: string,
+  ) => {
+    setBusy(true);
+    setError(null);
+    try {
+      const token = await getIdToken();
+      await uploadDocument(token, {
+        patientId,
+        fileUri: asset.uri,
+        mimeType,
+        filename: asset.name,
+        label,
+      });
+      await load();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Failed to upload document');
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const pickAndUpload = async () => {
+    if (busy) return;
+    setError(null);
+    const result = await DocumentPicker.getDocumentAsync({
+      type: ['application/pdf', 'image/jpeg', 'image/png'],
+      copyToCacheDirectory: true,
+      multiple: false,
+    });
+    if (result.canceled) return;
+    const asset = result.assets[0];
+    if (!asset) return;
+    if (asset.size != null && asset.size > MAX_DOCUMENT_BYTES) {
+      setError('File is too large — the limit is 20 MB.');
+      return;
+    }
+    const mimeType = documentMimeType(asset.name, asset.mimeType ?? null);
+    if (!mimeType) {
+      setError('Only PDF, JPEG, and PNG files are supported.');
+      return;
+    }
+    if (Platform.OS === 'ios') {
+      Alert.prompt(
+        'Add a label?',
+        'e.g. "Blood report Mar 2026" — optional.',
+        [
+          { text: 'Skip', onPress: () => void doUpload(asset, mimeType) },
+          {
+            text: 'Attach',
+            onPress: (text?: string) => void doUpload(asset, mimeType, text?.trim() || undefined),
+          },
+        ],
+        'plain-text',
+      );
+    } else {
+      await doUpload(asset, mimeType);
+    }
+  };
+
+  const openDocument = async (entry: DocumentEntry) => {
+    setError(null);
+    try {
+      const token = await getIdToken();
+      const { url } = await getDocumentUrl(token, patientId, entry.id);
+      await Linking.openURL(url);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Failed to open document');
+    }
+  };
+
+  const confirmDelete = (entry: DocumentEntry) => {
+    Alert.alert(
+      'Delete document',
+      `Remove "${entry.document.label ?? entry.document.filename}"? This cannot be undone.`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: () => {
+            void (async () => {
+              setError(null);
+              try {
+                const token = await getIdToken();
+                await deleteDocument(token, patientId, entry.id);
+                setItems((prev) => prev.filter((d) => d.id !== entry.id));
+              } catch (e) {
+                setError(e instanceof Error ? e.message : 'Failed to delete document');
+              }
+            })();
+          },
+        },
+      ],
+    );
+  };
+
+  return (
+    <View style={styles.followupCard}>
+      <View style={styles.followupHeader}>
+        <Text style={styles.sectionTitle}>Documents</Text>
+        {items.length > 0 ? <Text style={styles.sectionCount}>{items.length}</Text> : null}
+      </View>
+
+      {items.length === 0 ? (
+        <Text style={styles.followupEmpty}>
+          No documents yet. Attach lab reports, scans, or past records for this patient.
+        </Text>
+      ) : (
+        items.map((d) => (
+          <View key={d.id} style={styles.followupRow}>
+            <Feather
+              name={d.document.content_type === 'application/pdf' ? 'file-text' : 'image'}
+              size={15}
+              color={c.accent}
+            />
+            <Pressable
+              onPress={() => void openDocument(d)}
+              style={({ pressed }) => [{ flex: 1, opacity: pressed ? 0.6 : 1 }]}
+              accessibilityRole="button"
+              accessibilityLabel={`Open ${d.document.label ?? d.document.filename}`}
+            >
+              <Text style={styles.documentName} numberOfLines={1}>
+                {d.document.label ?? d.document.filename}
+              </Text>
+              <Text style={styles.documentMeta}>
+                {new Date(d.document.created_at).toLocaleDateString([], {
+                  month: 'short',
+                  day: 'numeric',
+                  year: 'numeric',
+                })}
+              </Text>
+            </Pressable>
+            <Pressable
+              onPress={() => confirmDelete(d)}
+              style={({ pressed }) => [styles.doneBtn, { opacity: pressed ? 0.7 : 1 }]}
+              accessibilityRole="button"
+              accessibilityLabel="Delete document"
+            >
+              <Feather name="trash-2" size={14} color={c.textMuted} />
+            </Pressable>
+          </View>
+        ))
+      )}
+
+      <Pressable
+        onPress={() => void pickAndUpload()}
+        disabled={busy}
+        style={({ pressed }) => [styles.attachBtn, { opacity: busy ? 0.5 : pressed ? 0.75 : 1 }]}
+        accessibilityRole="button"
+        accessibilityLabel="Attach a document"
+      >
+        {busy ? (
+          <ActivityIndicator size="small" color={c.accent} />
+        ) : (
+          <>
+            <Feather name="paperclip" size={13} color={c.accent} />
+            <Text style={styles.attachBtnText}>ATTACH DOCUMENT</Text>
+          </>
+        )}
+      </Pressable>
+      {error ? <Text style={styles.errorText}>{error}</Text> : null}
+    </View>
+  );
+}
+
 function EditPatientModal({
   open,
   entry,
@@ -368,6 +705,7 @@ function EditPatientModal({
   const [name, setName] = useState('');
   const [age, setAge] = useState('');
   const [sex, setSex] = useState<PatientSex | null>(null);
+  const [phone, setPhone] = useState('');
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -377,6 +715,7 @@ function EditPatientModal({
       setName(entry.patient.name);
       setAge(entry.patient.age_at_record != null ? String(entry.patient.age_at_record) : '');
       setSex(entry.patient.sex);
+      setPhone(entry.patient.phone ?? '');
       setError(null);
       setSaving(false);
     }
@@ -388,13 +727,15 @@ function EditPatientModal({
     setSaving(true);
     try {
       const token = await getIdToken();
-      const params: { name?: string; age_at_record?: number; sex?: PatientSex } = {};
+      const params: { name?: string; age_at_record?: number; sex?: PatientSex; phone?: string } =
+        {};
       if (name.trim() !== entry.patient.name) params.name = name.trim();
       const ageNum = age ? Number.parseInt(age, 10) : null;
       if (ageNum !== entry.patient.age_at_record && ageNum !== null && !Number.isNaN(ageNum)) {
         params.age_at_record = ageNum;
       }
       if (sex !== entry.patient.sex && sex !== null) params.sex = sex;
+      if (phone.trim() !== (entry.patient.phone ?? '')) params.phone = phone.trim();
       const updated = await patchPatient(token, entry.id, params);
       onSaved(updated);
     } catch (e) {
@@ -463,6 +804,18 @@ function EditPatientModal({
                 })}
               </View>
             </View>
+          </View>
+
+          <View style={{ gap: 6 }}>
+            <Text style={styles.label}>Phone (for follow-up reminders)</Text>
+            <TextInput
+              style={styles.input}
+              value={phone}
+              onChangeText={setPhone}
+              placeholder="+91 …"
+              keyboardType="phone-pad"
+              placeholderTextColor={c.textDim}
+            />
           </View>
 
           {error ? <Text style={styles.errorText}>{error}</Text> : null}
@@ -729,6 +1082,114 @@ const makeStyles = (c: ThemeColors) => StyleSheet.create({
     color: c.textDim,
     fontSize: font.size.xs,
     fontVariant: ['tabular-nums'],
+  },
+
+  followupCard: {
+    backgroundColor: c.surface,
+    borderRadius: radii.lg,
+    borderWidth: 1,
+    borderColor: c.border,
+    padding: space.lg,
+    gap: space.sm,
+  },
+  followupHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  callBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: radii.sm,
+    borderWidth: 1,
+    borderColor: c.accentDim,
+    backgroundColor: c.accentSoft,
+  },
+  callBtnText: {
+    fontFamily: fonts.displayBold,
+    fontSize: font.size.xs - 1,
+    color: c.accent,
+    letterSpacing: 0.8,
+  },
+  followupEmpty: {
+    fontFamily: fonts.display,
+    fontSize: font.size.sm,
+    color: c.textMuted,
+    lineHeight: 18,
+  },
+  followupRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: space.sm,
+    paddingVertical: 6,
+  },
+  followupDate: {
+    fontFamily: fonts.displaySemi,
+    fontSize: font.size.sm,
+    color: c.text,
+  },
+  followupNote: {
+    fontFamily: fonts.display,
+    fontSize: font.size.xs,
+    color: c.textMuted,
+    marginTop: 1,
+  },
+  doneBtn: {
+    width: 28,
+    height: 28,
+    borderRadius: radii.sm,
+    borderWidth: 1,
+    borderColor: c.border,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  followupPresets: { flexDirection: 'row', gap: 8, marginTop: 2 },
+  presetChip: {
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+    borderRadius: radii.sm,
+    borderWidth: 1,
+    borderColor: c.border,
+    backgroundColor: c.surfaceElevated,
+  },
+  presetChipText: {
+    fontFamily: fonts.displayBold,
+    fontSize: font.size.xs - 1,
+    color: c.textMuted,
+    letterSpacing: 0.6,
+  },
+
+  documentName: {
+    fontFamily: fonts.displaySemi,
+    fontSize: font.size.sm,
+    color: c.text,
+  },
+  documentMeta: {
+    fontFamily: fonts.display,
+    fontSize: font.size.xs,
+    color: c.textMuted,
+    marginTop: 1,
+  },
+  attachBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    marginTop: 2,
+    paddingVertical: 10,
+    borderRadius: radii.sm,
+    borderWidth: 1,
+    borderColor: c.border,
+    backgroundColor: c.surfaceElevated,
+  },
+  attachBtnText: {
+    fontFamily: fonts.displayBold,
+    fontSize: font.size.xs - 1,
+    color: c.accent,
+    letterSpacing: 0.8,
   },
 
   recordingCard: {
