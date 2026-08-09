@@ -154,13 +154,7 @@ export default function SignInScreen() {
             </View>
           </View>
 
-          <View style={{ marginTop: space.xxl }}>
-            <Text style={styles.heroLine1}>
-              {mode === 'signin' ? 'Welcome' : 'Let’s get'}
-            </Text>
-            <Text style={styles.heroLine2}>
-              {mode === 'signin' ? 'back.' : 'started.'}
-            </Text>
+          <View style={{ marginTop: space.xl }}>
             <Text style={styles.heroAccent}>{mode === 'signin' ? 'sign in' : 'create account'}</Text>
           </View>
 
