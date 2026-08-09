@@ -7,6 +7,7 @@ import {
 } from 'firebase/auth';
 
 import { requestPhoneLoginOtp, verifyPhoneLoginOtp } from '@/api/otp';
+import { Feather } from '@expo/vector-icons';
 import { useState } from 'react';
 import {
   ActivityIndicator,
@@ -391,6 +392,23 @@ export default function SignInScreen() {
         </View>
         ) : null}
 
+        {/* Feature highlights — small boxes */}
+        <View style={styles.featureRow}>
+          {(
+            [
+              { icon: 'mic', label: 'Voice → SOAP in seconds' },
+              { icon: 'lock', label: 'Encrypted patient data' },
+              { icon: 'check-circle', label: 'Verified letterheads' },
+              { icon: 'bell', label: 'Follow-up reminders' },
+            ] as const
+          ).map((f) => (
+            <View key={f.icon} style={styles.featureBox}>
+              <Feather name={f.icon} size={13} color={c.accent} />
+              <Text style={styles.featureText}>{f.label}</Text>
+            </View>
+          ))}
+        </View>
+
         <Text style={styles.disclaimer}>
           Draft assistive tool · review and sign every note before clinical use.
         </Text>
@@ -729,6 +747,32 @@ const makeStyles = (c: ThemeColors) => StyleSheet.create({
     minHeight: 50,
   },
   otpBtnIcon: { fontSize: 15 },
+  featureRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'center',
+    gap: 8,
+    width: '100%',
+    maxWidth: 460,
+    alignSelf: 'center',
+    marginTop: space.xs,
+  },
+  featureBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: c.surface,
+    borderWidth: 1,
+    borderColor: c.border,
+    borderRadius: radii.md,
+    paddingHorizontal: 10,
+    paddingVertical: 7,
+  },
+  featureText: {
+    fontFamily: fonts.displayMedium,
+    fontSize: font.size.xs,
+    color: c.textMuted,
+  },
   googleG: {
     fontFamily: fonts.displayBold,
     fontSize: 18,
