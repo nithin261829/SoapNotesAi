@@ -1,4 +1,3 @@
-// Sign-in — Instagram-style: flat, minimal, centered. Theme-aware.
 import {
   createUserWithEmailAndPassword,
   type AuthError,
@@ -6,8 +5,9 @@ import {
   signInWithCustomToken,
   signInWithEmailAndPassword,
 } from 'firebase/auth';
-import { Feather } from '@expo/vector-icons';
-import { useMemo, useState } from 'react';
+
+import { requestPhoneLoginOtp, verifyPhoneLoginOtp } from '@/api/otp';
+import { useState } from 'react';
 import {
   ActivityIndicator,
   Image,
@@ -21,62 +21,21 @@ import {
   View,
 } from 'react-native';
 
-import { requestPhoneLoginOtp, verifyPhoneLoginOtp } from '@/api/otp';
 import { firebaseAuth } from '@/auth/firebase';
 import { useGoogleSignIn } from '@/auth/useGoogleSignIn';
-import { useTheme } from '@/theme/ThemeContext';
+import { useStyles, useThemeColors } from '@/theme/ThemeContext';
+import { fonts } from '@/theme/fonts';
+import { font, radii, space, type ThemeColors } from '@/theme/tokens';
 
 type Mode = 'signin' | 'signup';
-type Field = 'email' | 'password' | 'phone' | 'otp';
-
-// ─── Flat palettes (Instagram-plain) ───────────────────────────────
-const LIGHT_P = {
-  bg: '#fafafa',
-  box: '#ffffff',
-  ink: '#111418',
-  gray: '#737b83',
-  grayLight: '#a4acb4',
-  line: '#e2e5e8',
-  fill: '#f3f5f7',
-  focus: '#b9c1c9',
-  cta: '#111418',
-  ctaLabel: '#ffffff',
-  danger: '#c2413b',
-  dangerSoft: '#fdf0ef',
-  dangerLine: '#f2cfcd',
-  okSoft: '#eef7f1',
-  okLine: '#d3e9db',
-};
-
-const DARK_P: typeof LIGHT_P = {
-  bg: '#0a0d10',
-  box: '#101418',
-  ink: '#f2f4f6',
-  gray: '#8f979f',
-  grayLight: '#5c646c',
-  line: 'rgba(255,255,255,0.10)',
-  fill: 'rgba(255,255,255,0.06)',
-  focus: 'rgba(255,255,255,0.35)',
-  cta: '#f2f4f6',
-  ctaLabel: '#111418',
-  danger: '#e07b76',
-  dangerSoft: 'rgba(224,123,118,0.12)',
-  dangerLine: 'rgba(224,123,118,0.35)',
-  okSoft: 'rgba(94,190,131,0.12)',
-  okLine: 'rgba(94,190,131,0.35)',
-};
-
-type Palette = typeof LIGHT_P;
 
 export default function SignInScreen() {
-  const { isDark } = useTheme();
-  const P = isDark ? DARK_P : LIGHT_P;
-  const styles = useMemo(() => makeStyles(P), [P]);
+  const c = useThemeColors();
+  const styles = useStyles(makeStyles);
   const google = useGoogleSignIn();
   const [mode, setMode] = useState<Mode>('signin');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [showPassword, setShowPassword] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [resetSent, setResetSent] = useState(false);
@@ -86,7 +45,6 @@ export default function SignInScreen() {
   const [otpCode, setOtpCode] = useState('');
   const [otpSentTo, setOtpSentTo] = useState<string | null>(null);
   const [otpChannel, setOtpChannel] = useState<string | null>(null);
-  const [focused, setFocused] = useState<Field | null>(null);
 
   const phoneValid = /^[6-9]\d{9}$/.test(phone.replace(/\D/g, '').replace(/^(91|0)/, ''));
 
@@ -152,300 +110,300 @@ export default function SignInScreen() {
     }
   };
 
-  const phonePrimaryDisabled = submitting || (otpSentTo ? otpCode.length < 6 : !phoneValid);
-
-  const inputWrap = (field: Field) => [
-    styles.inputWrap,
-    focused === field && styles.inputWrapFocused,
-  ];
-
   return (
-    <View style={styles.root}>
-      <KeyboardAvoidingView
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-        style={{ flex: 1 }}
+    <KeyboardAvoidingView
+      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      style={styles.kav}
+    >
+      <ScrollView
+        style={styles.scroll}
+        contentContainerStyle={styles.container}
+        keyboardShouldPersistTaps="handled"
+        showsVerticalScrollIndicator={false}
       >
-        <ScrollView
-          contentContainerStyle={styles.container}
-          keyboardShouldPersistTaps="handled"
-          showsVerticalScrollIndicator={false}
-        >
-          <View style={styles.column}>
-            {/* Wordmark */}
-            <Text style={styles.wordmark}>SoapNotesAi</Text>
-            <Text style={styles.tagline}>Voice → SOAP notes for clinicians</Text>
+        {/* Hero — wellness-clinic feel */}
+        <View style={styles.hero}>
+          <View style={styles.brandRow}>
+            <Image
+              source={require('../../assets/logo.png')}
+              style={styles.brandLogo}
+              resizeMode="contain"
+              accessibilityLabel="SoapNotesAi"
+            />
+            <View>
+              <Text style={styles.brandTitle}>SoapNotesAi</Text>
+              <Text style={styles.brandEyebrow}>Voice to SOAP notes</Text>
+            </View>
+          </View>
 
-            {/* Method tabs */}
-            <View style={styles.methodRow}>
-              {(
-                [
-                  { key: 'email', label: 'Email' },
-                  { key: 'phone', label: 'Mobile OTP' },
-                ] as const
-              ).map((m) => (
-                <Pressable
-                  key={m.key}
-                  onPress={() => {
-                    setMethod(m.key);
-                    setError(null);
-                  }}
-                  style={styles.methodBtn}
-                  hitSlop={6}
-                >
-                  <Text
-                    style={[styles.methodText, method === m.key && styles.methodTextActive]}
-                  >
-                    {m.label}
-                  </Text>
-                  <View
-                    style={[styles.methodUnderline, method === m.key && styles.methodUnderlineOn]}
-                  />
-                </Pressable>
-              ))}
+          <View style={{ marginTop: space.xxl }}>
+            <Text style={styles.heroLine1}>
+              {mode === 'signin' ? 'Welcome' : 'Let’s get'}
+            </Text>
+            <Text style={styles.heroLine2}>
+              {mode === 'signin' ? 'back.' : 'started.'}
+            </Text>
+            <Text style={styles.heroAccent}>{mode === 'signin' ? 'sign in' : 'create account'}</Text>
+          </View>
+
+          <Text style={styles.subtitle}>
+            {mode === 'signin'
+              ? 'Pick up where you left off. Your patients and recordings are right where you left them.'
+              : 'Dictate a session, the AI drafts the SOAP, you review and sign. Built for the rhythm of a busy clinic.'}
+          </Text>
+        </View>
+
+        {/* Method toggle: Email | Mobile OTP */}
+        <View style={styles.methodRow}>
+          {(
+            [
+              { key: 'email', label: 'EMAIL' },
+              { key: 'phone', label: 'MOBILE OTP' },
+            ] as const
+          ).map((m) => (
+            <Pressable
+              key={m.key}
+              onPress={() => {
+                setMethod(m.key);
+                setError(null);
+              }}
+              style={[styles.methodBtn, method === m.key && styles.methodBtnActive]}
+            >
+              <Text
+                style={[styles.methodText, method === m.key && styles.methodTextActive]}
+              >
+                {m.label}
+              </Text>
+            </Pressable>
+          ))}
+        </View>
+
+        {method === 'phone' ? (
+          <View style={styles.card}>
+            <View style={styles.fieldGroup}>
+              <Text style={styles.label}>Mobile number (India)</Text>
+              <View style={styles.phoneRow}>
+                <Text style={styles.phonePrefix}>+91</Text>
+                <TextInput
+                  value={phone}
+                  onChangeText={(t) => setPhone(t.replace(/\D/g, '').slice(0, 10))}
+                  keyboardType="number-pad"
+                  placeholder="98765 43210"
+                  placeholderTextColor={c.textDim}
+                  style={[styles.input, { flex: 1 }]}
+                  editable={!submitting && !otpSentTo}
+                  maxLength={10}
+                />
+              </View>
             </View>
 
-            {method === 'phone' ? (
-              <View style={styles.form}>
-                <View style={inputWrap('phone')}>
-                  <Text style={styles.phonePrefix}>+91</Text>
+            {otpSentTo ? (
+              <>
+                <View style={styles.fieldGroup}>
+                  <Text style={styles.label}>6-digit code</Text>
                   <TextInput
-                    value={phone}
-                    onChangeText={(t) => setPhone(t.replace(/\D/g, '').slice(0, 10))}
+                    value={otpCode}
+                    onChangeText={(t) => setOtpCode(t.replace(/\D/g, '').slice(0, 6))}
                     keyboardType="number-pad"
-                    placeholder="Mobile number"
-                    placeholderTextColor={P.grayLight}
-                    style={styles.input}
-                    editable={!submitting && !otpSentTo}
-                    maxLength={10}
-                    onFocus={() => setFocused('phone')}
-                    onBlur={() => setFocused(null)}
-                  />
-                </View>
-
-                {otpSentTo ? (
-                  <>
-                    <View style={inputWrap('otp')}>
-                      <TextInput
-                        value={otpCode}
-                        onChangeText={(t) => setOtpCode(t.replace(/\D/g, '').slice(0, 6))}
-                        keyboardType="number-pad"
-                        placeholder="6-digit code"
-                        placeholderTextColor={P.grayLight}
-                        style={styles.input}
-                        editable={!submitting}
-                        maxLength={6}
-                        autoFocus
-                        onFocus={() => setFocused('otp')}
-                        onBlur={() => setFocused(null)}
-                      />
-                    </View>
-                    <Text style={styles.hint}>
-                      {otpChannel === 'dev_log'
-                        ? 'Dev mode: SMS not configured yet — the code is on the backend console.'
-                        : `Code sent to ${otpSentTo}.`}
-                    </Text>
-                  </>
-                ) : null}
-
-                {error ? (
-                  <View style={styles.errorBox}>
-                    <Text style={styles.errorText}>{error}</Text>
-                  </View>
-                ) : null}
-
-                <Pressable
-                  accessibilityRole="button"
-                  disabled={phonePrimaryDisabled}
-                  onPress={() => void (otpSentTo ? onVerifyPhoneOtp() : onSendPhoneOtp())}
-                  style={({ pressed }) => [
-                    styles.primaryBtn,
-                    { opacity: phonePrimaryDisabled ? 0.35 : pressed ? 0.85 : 1 },
-                  ]}
-                >
-                  {submitting ? (
-                    <ActivityIndicator color={P.ctaLabel} />
-                  ) : (
-                    <Text style={styles.primaryBtnLabel}>
-                      {otpSentTo ? 'Verify & sign in' : 'Get OTP'}
-                    </Text>
-                  )}
-                </Pressable>
-
-                {otpSentTo ? (
-                  <Pressable
-                    onPress={() => {
-                      setOtpSentTo(null);
-                      setOtpCode('');
-                      setError(null);
-                    }}
-                    hitSlop={8}
-                    style={{ alignSelf: 'center' }}
-                  >
-                    <Text style={styles.smallLink}>Change number / resend</Text>
-                  </Pressable>
-                ) : null}
-              </View>
-            ) : (
-              <View style={styles.form}>
-                <View style={inputWrap('email')}>
-                  <TextInput
-                    value={email}
-                    onChangeText={setEmail}
-                    autoCapitalize="none"
-                    autoCorrect={false}
-                    autoComplete="email"
-                    keyboardType="email-address"
-                    textContentType="emailAddress"
-                    placeholder="Email"
-                    placeholderTextColor={P.grayLight}
+                    placeholder="••••••"
+                    placeholderTextColor={c.textDim}
                     style={styles.input}
                     editable={!submitting}
-                    onFocus={() => setFocused('email')}
-                    onBlur={() => setFocused(null)}
+                    maxLength={6}
+                    autoFocus
                   />
                 </View>
-
-                <View style={inputWrap('password')}>
-                  <TextInput
-                    value={password}
-                    onChangeText={setPassword}
-                    secureTextEntry={!showPassword}
-                    autoCapitalize="none"
-                    autoCorrect={false}
-                    autoComplete={mode === 'signin' ? 'current-password' : 'new-password'}
-                    textContentType={mode === 'signin' ? 'password' : 'newPassword'}
-                    placeholder="Password"
-                    placeholderTextColor={P.grayLight}
-                    style={styles.input}
-                    editable={!submitting}
-                    onSubmitEditing={() => void onSubmit()}
-                    onFocus={() => setFocused('password')}
-                    onBlur={() => setFocused(null)}
-                  />
-                  {password.length > 0 ? (
-                    <Pressable onPress={() => setShowPassword((s) => !s)} hitSlop={8}>
-                      <Text style={styles.showHide}>{showPassword ? 'Hide' : 'Show'}</Text>
-                    </Pressable>
-                  ) : null}
-                </View>
-
-                {resetSent ? (
-                  <View style={styles.resetBox}>
-                    <Text style={styles.resetText}>
-                      Password-reset email sent to {email.trim()}. Check your inbox (and
-                      spam), set a new password, then sign in here.
-                    </Text>
-                  </View>
-                ) : null}
-
-                {error ? (
-                  <View style={styles.errorBox}>
-                    <Text style={styles.errorText}>{error}</Text>
-                  </View>
-                ) : null}
-
-                <Pressable
-                  accessibilityRole="button"
-                  accessibilityLabel={mode === 'signin' ? 'Sign in' : 'Create account'}
-                  disabled={submitDisabled}
-                  onPress={() => void onSubmit()}
-                  style={({ pressed }) => [
-                    styles.primaryBtn,
-                    { opacity: submitDisabled ? 0.35 : pressed ? 0.85 : 1 },
-                  ]}
-                >
-                  {submitting ? (
-                    <ActivityIndicator color={P.ctaLabel} />
-                  ) : (
-                    <Text style={styles.primaryBtnLabel}>
-                      {mode === 'signin' ? 'Log in' : 'Sign up'}
-                    </Text>
-                  )}
-                </Pressable>
-
-                <View style={styles.dividerRow}>
-                  <View style={styles.dividerLine} />
-                  <Text style={styles.dividerText}>OR</Text>
-                  <View style={styles.dividerLine} />
-                </View>
-
-                <Pressable
-                  accessibilityRole="button"
-                  accessibilityLabel="Continue with Google"
-                  disabled={google.inProgress || submitting}
-                  onPress={() => void google.signIn()}
-                  style={({ pressed }) => [
-                    styles.googleRow,
-                    { opacity: google.inProgress || submitting ? 0.5 : pressed ? 0.7 : 1 },
-                  ]}
-                >
-                  {google.inProgress ? (
-                    <ActivityIndicator color={P.ink} />
-                  ) : (
-                    <>
-                      <Text style={styles.googleG}>G</Text>
-                      <Text style={styles.googleLabel}>Continue with Google</Text>
-                    </>
-                  )}
-                </Pressable>
-                {google.error ? <Text style={styles.googleError}>{google.error}</Text> : null}
-
-                {mode === 'signin' ? (
-                  <Pressable
-                    accessibilityRole="link"
-                    onPress={() => void onForgotPassword()}
-                    hitSlop={8}
-                    style={{ alignSelf: 'center' }}
-                  >
-                    <Text style={styles.smallLink}>Forgot password?</Text>
-                  </Pressable>
-                ) : null}
-              </View>
-            )}
-
-            {/* Bottom box: mode switch (Instagram-style) */}
-            {method === 'email' ? (
-              <View style={styles.bottomBox}>
-                <Text style={styles.bottomText}>
-                  {mode === 'signin' ? "Don't have an account?" : 'Have an account?'}
+                <Text style={styles.otpHint}>
+                  {otpChannel === 'dev_log'
+                    ? 'Dev mode: SMS not configured yet — the code is on the backend console.'
+                    : `Code sent to ${otpSentTo}.`}
                 </Text>
-                <Pressable
-                  accessibilityRole="link"
-                  onPress={() => {
-                    setMode((m) => (m === 'signin' ? 'signup' : 'signin'));
-                    setError(null);
-                  }}
-                  hitSlop={8}
-                >
-                  <Text style={styles.bottomLink}>
-                    {mode === 'signin' ? 'Sign up' : 'Log in'}
-                  </Text>
-                </Pressable>
+              </>
+            ) : null}
+
+            {error ? (
+              <View style={styles.errorBox}>
+                <Text style={styles.errorText}>{error}</Text>
               </View>
             ) : null}
 
-            {/* Voice to SOAP notes */}
-            <View style={styles.poweredRow}>
-              <Text style={styles.poweredText}>Voice to SOAP notes</Text>
-              <View style={styles.poweredDivider} />
-              <Image
-                source={require('../../assets/logo.png')}
-                style={styles.poweredLogo}
-                resizeMode="contain"
-                accessibilityLabel="SoapNotesAi"
-              />
-            </View>
+            <Pressable
+              accessibilityRole="button"
+              disabled={submitting || (otpSentTo ? otpCode.length < 6 : !phoneValid)}
+              onPress={() => void (otpSentTo ? onVerifyPhoneOtp() : onSendPhoneOtp())}
+              style={({ pressed }) => [
+                styles.primaryBtn,
+                {
+                  opacity:
+                    submitting || (otpSentTo ? otpCode.length < 6 : !phoneValid)
+                      ? 0.45
+                      : pressed
+                        ? 0.85
+                        : 1,
+                },
+              ]}
+            >
+              {submitting ? (
+                <ActivityIndicator color="#FFFFFF" />
+              ) : (
+                <Text style={styles.primaryBtnLabel}>
+                  {otpSentTo ? 'VERIFY & SIGN IN  →' : 'GET OTP  →'}
+                </Text>
+              )}
+            </Pressable>
 
-            <View style={styles.footer}>
-              <Text style={styles.footerText}>
-                Draft assistive tool · review and sign every note before clinical use.
-              </Text>
-              <Text style={styles.footerText}>© SoapNotesAi · soapnotesai.web.app</Text>
-            </View>
+            {otpSentTo ? (
+              <Pressable
+                onPress={() => {
+                  setOtpSentTo(null);
+                  setOtpCode('');
+                  setError(null);
+                }}
+                hitSlop={8}
+              >
+                <Text style={styles.toggleLink}>Change number / resend</Text>
+              </Pressable>
+            ) : null}
           </View>
-        </ScrollView>
-      </KeyboardAvoidingView>
-    </View>
+        ) : (
+        <View style={styles.card}>
+          <View style={styles.fieldGroup}>
+            <Text style={styles.label}>Email</Text>
+            <TextInput
+              value={email}
+              onChangeText={setEmail}
+              autoCapitalize="none"
+              autoCorrect={false}
+              autoComplete="email"
+              keyboardType="email-address"
+              textContentType="emailAddress"
+              placeholder="doctor@clinic.com"
+              placeholderTextColor={c.textDim}
+              style={styles.input}
+              editable={!submitting}
+            />
+          </View>
+
+          <View style={styles.fieldGroup}>
+            <Text style={styles.label}>Password</Text>
+            <TextInput
+              value={password}
+              onChangeText={setPassword}
+              secureTextEntry
+              autoCapitalize="none"
+              autoCorrect={false}
+              autoComplete={mode === 'signin' ? 'current-password' : 'new-password'}
+              textContentType={mode === 'signin' ? 'password' : 'newPassword'}
+              placeholder="At least 6 characters"
+              placeholderTextColor={c.textDim}
+              style={styles.input}
+              editable={!submitting}
+              onSubmitEditing={() => void onSubmit()}
+            />
+          </View>
+
+          {mode === 'signin' ? (
+            <Pressable
+              accessibilityRole="link"
+              onPress={() => void onForgotPassword()}
+              hitSlop={8}
+              style={{ alignSelf: 'flex-end' }}
+            >
+              <Text style={styles.forgotLink}>Forgot password?</Text>
+            </Pressable>
+          ) : null}
+
+          {resetSent ? (
+            <View style={styles.resetBox}>
+              <Text style={styles.resetText}>
+                Password-reset email sent to {email.trim()}. Check your inbox (and spam folder),
+                set a new password, then sign in here.
+              </Text>
+            </View>
+          ) : null}
+
+          {error ? (
+            <View style={styles.errorBox}>
+              <Text style={styles.errorText}>{error}</Text>
+            </View>
+          ) : null}
+
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={mode === 'signin' ? 'Sign in' : 'Create account'}
+            disabled={submitDisabled}
+            onPress={() => void onSubmit()}
+            style={({ pressed }) => [
+              styles.primaryBtn,
+              { opacity: submitDisabled ? 0.45 : pressed ? 0.85 : 1 },
+            ]}
+          >
+            {submitting ? (
+              <ActivityIndicator color="#FFFFFF" />
+            ) : (
+              <Text style={styles.primaryBtnLabel}>
+                {mode === 'signin' ? 'SIGN IN  →' : 'CREATE ACCOUNT  →'}
+              </Text>
+            )}
+          </Pressable>
+
+          <View style={styles.dividerRow}>
+            <View style={styles.dividerLine} />
+            <Text style={styles.dividerText}>OR</Text>
+            <View style={styles.dividerLine} />
+          </View>
+
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Continue with Google"
+            disabled={google.inProgress || submitting}
+            onPress={() => void google.signIn()}
+            style={({ pressed }) => [
+              styles.googleBtn,
+              { opacity: google.inProgress || submitting ? 0.55 : pressed ? 0.85 : 1 },
+            ]}
+          >
+            {google.inProgress ? (
+              <ActivityIndicator color={c.text} />
+            ) : (
+              <>
+                <Text style={styles.googleG}>G</Text>
+                <Text style={styles.googleBtnLabel}>Continue with Google</Text>
+              </>
+            )}
+          </Pressable>
+          {google.error ? (
+            <Text style={styles.googleError}>{google.error}</Text>
+          ) : null}
+        </View>
+        )}
+
+        {/* Mode toggle (email accounts only — phone accounts auto-create) */}
+        {method === 'email' ? (
+        <View style={styles.toggleRow}>
+          <Text style={styles.toggleText}>
+            {mode === 'signin' ? 'New to SoapNotesAi?' : 'Already have an account?'}
+          </Text>
+          <Pressable
+            accessibilityRole="link"
+            onPress={() => {
+              setMode((m) => (m === 'signin' ? 'signup' : 'signin'));
+              setError(null);
+            }}
+            hitSlop={8}
+          >
+            <Text style={styles.toggleLink}>
+              {mode === 'signin' ? 'Create one' : 'Sign in'}
+            </Text>
+          </Pressable>
+        </View>
+        ) : null}
+
+        <Text style={styles.disclaimer}>
+          Draft assistive tool · review and sign every note before clinical use.
+        </Text>
+      </ScrollView>
+    </KeyboardAvoidingView>
   );
 }
 
@@ -486,130 +444,279 @@ function humanizeAuthError(e: unknown): string {
   }
 }
 
-const makeStyles = (P: Palette) => StyleSheet.create({
-  root: { flex: 1, backgroundColor: P.bg },
+const makeStyles = (c: ThemeColors) => StyleSheet.create({
+  kav: { flex: 1, backgroundColor: c.bg },
+  scroll: { backgroundColor: c.bg },
   container: {
     flexGrow: 1,
+    paddingHorizontal: space.lg,
+    paddingTop: space.xxl + space.lg,
+    paddingBottom: space.xxl,
+    gap: space.lg,
+  },
+
+  // ─── Hero ───────────────────────────────────────────────
+  hero: { gap: space.sm, marginBottom: space.lg },
+  brandRow: { flexDirection: 'row', alignItems: 'center', gap: space.md },
+  brandLogo: { width: 96, height: 44 },
+  brandMark: {
+    width: 56,
+    height: 56,
+    borderRadius: 16,
+    backgroundColor: c.accent,
     alignItems: 'center',
     justifyContent: 'center',
-    paddingHorizontal: 24,
-    paddingVertical: 48,
+    position: 'relative',
   },
-  column: { width: '100%', maxWidth: 350, alignItems: 'center', gap: 0 },
-
-  poweredRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-    marginTop: 24,
-  },
-  poweredText: { fontSize: 12, fontWeight: '600', color: P.gray },
-  poweredDivider: { width: 1, height: 18, backgroundColor: P.line },
-  poweredLogo: { width: 74, height: 30 },
-  wordmark: {
+  brandMarkText: {
+    fontFamily: fonts.displayExtra,
     fontSize: 30,
-    fontWeight: '800',
-    color: P.ink,
-    letterSpacing: -1,
+    color: '#FFFFFF',
+    letterSpacing: -1.5,
+    includeFontPadding: false,
   },
-  tagline: { fontSize: 12.5, color: P.gray, marginTop: 4, marginBottom: 26 },
+  brandDot: {
+    position: 'absolute',
+    width: 14,
+    height: 14,
+    borderRadius: 4,
+    backgroundColor: c.accentAlt,
+    top: -2,
+    right: -2,
+  },
+  brandTitle: {
+    fontFamily: fonts.displayBold,
+    fontSize: font.size.xl,
+    color: c.text,
+    letterSpacing: -0.6,
+  },
+  brandEyebrow: {
+    fontFamily: fonts.displayMedium,
+    fontSize: font.size.xs,
+    color: c.textMuted,
+    letterSpacing: 0.8,
+    textTransform: 'uppercase',
+    marginTop: 2,
+  },
+  heroLine1: {
+    fontFamily: fonts.displayExtra,
+    fontSize: 56,
+    lineHeight: 60,
+    color: c.text,
+    letterSpacing: -2,
+  },
+  heroLine2: {
+    fontFamily: fonts.displayExtra,
+    fontSize: 56,
+    lineHeight: 60,
+    color: c.text,
+    letterSpacing: -2,
+    marginTop: -8,
+  },
+  heroAccent: {
+    fontFamily: fonts.serifBoldItalic,
+    fontSize: 36,
+    lineHeight: 42,
+    color: c.accent,
+    marginTop: -4,
+    letterSpacing: -0.5,
+  },
+  subtitle: {
+    fontFamily: fonts.display,
+    fontSize: font.size.md,
+    color: c.textMuted,
+    lineHeight: 22,
+    marginTop: space.md,
+  },
 
   methodRow: {
     flexDirection: 'row',
-    gap: 26,
-    marginBottom: 18,
+    gap: 6,
+    padding: 4,
+    backgroundColor: c.surfaceElevated,
+    borderRadius: radii.md,
+    borderWidth: 1,
+    borderColor: c.border,
   },
-  methodBtn: { alignItems: 'center', gap: 6 },
-  methodText: { fontSize: 13, fontWeight: '600', color: P.grayLight },
-  methodTextActive: { color: P.ink },
-  methodUnderline: { height: 2, alignSelf: 'stretch', backgroundColor: 'transparent', borderRadius: 1 },
-  methodUnderlineOn: { backgroundColor: P.ink },
-
-  form: { width: '100%', gap: 10 },
-
-  inputWrap: {
-    flexDirection: 'row',
+  methodBtn: {
+    flex: 1,
     alignItems: 'center',
-    gap: 10,
-    backgroundColor: P.fill,
-    borderWidth: 1,
-    borderColor: P.line,
-    borderRadius: 8,
-    paddingHorizontal: 12,
-    height: 44,
+    paddingVertical: 10,
+    borderRadius: radii.sm,
   },
-  inputWrapFocused: { borderColor: P.focus },
-  input: { flex: 1, fontSize: 14, color: P.ink, paddingVertical: 0, height: '100%' },
-  phonePrefix: { fontSize: 14, fontWeight: '600', color: P.gray },
-  showHide: { fontSize: 13, fontWeight: '700', color: P.ink },
+  methodBtnActive: { backgroundColor: c.accent },
+  methodText: {
+    fontFamily: fonts.displayBold,
+    color: c.textMuted,
+    fontSize: font.size.xs,
+    letterSpacing: 0.8,
+  },
+  methodTextActive: { color: '#FFFFFF' },
+  phoneRow: { flexDirection: 'row', alignItems: 'center', gap: space.sm },
+  phonePrefix: {
+    fontFamily: fonts.displayBold,
+    color: c.text,
+    fontSize: font.size.base,
+  },
+  otpHint: {
+    fontFamily: fonts.display,
+    fontSize: font.size.sm,
+    color: c.textMuted,
+    lineHeight: 19,
+  },
 
-  hint: { fontSize: 12, color: P.gray, lineHeight: 17 },
-
+  // ─── Card ───────────────────────────────────────────────
+  card: {
+    backgroundColor: c.surface,
+    borderRadius: radii.lg,
+    borderWidth: 1,
+    borderColor: c.border,
+    padding: space.lg,
+    gap: space.base,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.04,
+    shadowRadius: 8,
+    elevation: 2,
+  },
+  fieldGroup: { gap: 6 },
+  label: {
+    fontFamily: fonts.displayBold,
+    fontSize: font.size.xs,
+    color: c.textMuted,
+    letterSpacing: 0.8,
+    textTransform: 'uppercase',
+  },
+  input: {
+    backgroundColor: c.surfaceElevated,
+    borderWidth: 1,
+    borderColor: c.border,
+    borderRadius: radii.md,
+    paddingHorizontal: space.md,
+    paddingVertical: Platform.OS === 'ios' ? 14 : 10,
+    color: c.text,
+    fontFamily: fonts.display,
+    fontSize: font.size.base,
+  },
   errorBox: {
-    backgroundColor: P.dangerSoft,
+    backgroundColor: c.dangerSoft,
     borderWidth: 1,
-    borderColor: P.dangerLine,
-    borderRadius: 8,
-    padding: 10,
+    borderColor: c.danger,
+    borderRadius: radii.md,
+    padding: space.md,
   },
-  errorText: { fontSize: 12.5, color: P.danger, lineHeight: 18, textAlign: 'center' },
+  errorText: {
+    fontFamily: fonts.display,
+    color: c.danger,
+    fontSize: font.size.sm,
+    lineHeight: 19,
+  },
+  forgotLink: {
+    fontFamily: fonts.displaySemi,
+    color: c.accent,
+    fontSize: font.size.sm,
+    marginTop: -4,
+  },
   resetBox: {
-    backgroundColor: P.okSoft,
+    backgroundColor: c.accentSoft,
     borderWidth: 1,
-    borderColor: P.okLine,
-    borderRadius: 8,
-    padding: 10,
+    borderColor: c.accentDim,
+    borderRadius: radii.md,
+    padding: space.md,
   },
-  resetText: { fontSize: 12.5, color: P.gray, lineHeight: 18 },
+  resetText: {
+    fontFamily: fonts.display,
+    color: c.text,
+    fontSize: font.size.sm,
+    lineHeight: 19,
+  },
 
   primaryBtn: {
-    height: 44,
-    borderRadius: 8,
-    backgroundColor: P.cta,
+    marginTop: space.xs,
+    paddingVertical: space.md + 4,
+    paddingHorizontal: space.lg,
+    borderRadius: radii.md,
+    backgroundColor: c.accent,
     alignItems: 'center',
-    justifyContent: 'center',
-    marginTop: 4,
   },
-  primaryBtnLabel: { color: P.ctaLabel, fontSize: 14, fontWeight: '700' },
+  primaryBtnLabel: {
+    fontFamily: fonts.displayBold,
+    color: '#FFFFFF',
+    fontSize: font.size.sm,
+    letterSpacing: 1.4,
+  },
 
   dividerRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 14,
-    marginVertical: 8,
+    gap: space.sm,
+    marginTop: space.sm,
   },
-  dividerLine: { flex: 1, height: 1, backgroundColor: P.line },
-  dividerText: { fontSize: 11, fontWeight: '700', color: P.grayLight, letterSpacing: 0.5 },
-
-  googleRow: {
+  dividerLine: { flex: 1, height: 1, backgroundColor: c.border },
+  dividerText: {
+    fontFamily: fonts.displayBold,
+    fontSize: font.size.xs - 1,
+    color: c.textMuted,
+    letterSpacing: 1.2,
+  },
+  googleBtn: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 8,
-    height: 40,
+    gap: space.sm,
+    paddingVertical: space.md + 2,
+    paddingHorizontal: space.lg,
+    borderRadius: radii.md,
+    backgroundColor: c.surfaceElevated,
+    borderWidth: 1,
+    borderColor: c.borderStrong,
+    minHeight: 50,
   },
-  googleG: { fontSize: 16, fontWeight: '800', color: '#4285F4' },
-  googleLabel: { fontSize: 13.5, fontWeight: '700', color: P.ink },
-  googleError: { fontSize: 12, color: P.danger, textAlign: 'center' },
+  googleG: {
+    fontFamily: fonts.displayBold,
+    fontSize: 18,
+    lineHeight: 20,
+    color: '#4285F4',
+  },
+  googleBtnLabel: {
+    fontFamily: fonts.displaySemi,
+    color: c.text,
+    fontSize: font.size.sm,
+    letterSpacing: 0.4,
+  },
+  googleError: {
+    fontFamily: fonts.display,
+    color: c.danger,
+    fontSize: font.size.xs,
+    marginTop: 4,
+  },
 
-  smallLink: { fontSize: 12.5, color: P.gray, marginTop: 10 },
-
-  bottomBox: {
+  toggleRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     gap: 6,
-    width: '100%',
-    borderWidth: 1,
-    borderColor: P.line,
-    backgroundColor: P.box,
-    borderRadius: 10,
-    paddingVertical: 16,
-    marginTop: 22,
+    marginTop: space.sm,
   },
-  bottomText: { fontSize: 13.5, color: P.gray },
-  bottomLink: { fontSize: 13.5, fontWeight: '800', color: P.ink },
+  toggleText: {
+    fontFamily: fonts.display,
+    color: c.textMuted,
+    fontSize: font.size.sm,
+  },
+  toggleLink: {
+    fontFamily: fonts.displayBold,
+    color: c.accent,
+    fontSize: font.size.sm,
+    letterSpacing: 0.5,
+  },
 
-  footer: { alignItems: 'center', gap: 3, marginTop: 26 },
-  footerText: { fontSize: 10.5, color: P.grayLight },
+  disclaimer: {
+    marginTop: 'auto',
+    fontFamily: fonts.serifItalic,
+    fontSize: font.size.xs + 1,
+    color: c.textDim,
+    textAlign: 'center',
+    lineHeight: 17,
+    paddingTop: space.md,
+  },
 });
