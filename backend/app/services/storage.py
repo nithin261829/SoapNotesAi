@@ -71,5 +71,21 @@ def signed_audio_url(gs_uri: str, expires_minutes: int = 60) -> Optional[str]:
     try:
         return blob.generate_signed_url(expiration=timedelta(minutes=expires_minutes))
     except Exception:
-        logger.exception("signed_url_failed")
-        return None
+        # No local private key (Cloud Run runs on a keyless service account):
+        # sign via the IAM signBlob API instead. Requires the runtime SA to
+        # hold roles/iam.serviceAccountTokenCreator on itself (granted).
+        try:
+            import google.auth
+            from google.auth.transport import requests as ga_requests
+
+            credentials, _ = google.auth.default()
+            credentials.refresh(ga_requests.Request())
+            return blob.generate_signed_url(
+                expiration=timedelta(minutes=expires_minutes),
+                version="v4",
+                service_account_email=credentials.service_account_email,
+                access_token=credentials.token,
+            )
+        except Exception:
+            logger.exception("signed_url_failed")
+            return None
