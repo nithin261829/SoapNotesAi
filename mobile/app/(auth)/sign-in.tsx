@@ -123,7 +123,16 @@ export default function SignInScreen() {
       >
         {/* Header — professional SaaS pattern: small brand, modest heading */}
         <View style={styles.header}>
-          <Text style={styles.wordmark}>SoapNotesAi</Text>
+          <View style={styles.lockupRow}>
+            <Text style={styles.wordmark}>SoapNotesAi</Text>
+            <View style={styles.poweredDivider} />
+            <Image
+              source={require('../../assets/logo.png')}
+              style={styles.poweredLogo}
+              resizeMode="contain"
+              accessibilityLabel="SoapNotesAi"
+            />
+          </View>
           <Text style={styles.headerTitle}>
             {mode === 'signin' ? 'Sign in to your account' : 'Create your account'}
           </Text>
@@ -376,17 +385,6 @@ export default function SignInScreen() {
         </View>
         ) : null}
 
-        <View style={styles.poweredRow}>
-          <Text style={styles.poweredText}>Voice to SOAP notes</Text>
-          <View style={styles.poweredDivider} />
-          <Image
-            source={require('../../assets/logo.png')}
-            style={styles.poweredLogo}
-            resizeMode="contain"
-            accessibilityLabel="SoapNotesAi"
-          />
-        </View>
-
         <Text style={styles.disclaimer}>
           Draft assistive tool · review and sign every note before clinical use.
         </Text>
@@ -488,8 +486,9 @@ const makeStyles = (c: ThemeColors) => StyleSheet.create({
     color: c.textMuted,
     letterSpacing: 0.4,
   },
-  poweredDivider: { width: 1, height: 18, backgroundColor: c.border },
-  poweredLogo: { width: 64, height: 26 },
+  poweredDivider: { width: 1, height: 26, backgroundColor: c.borderStrong },
+  poweredLogo: { width: 84, height: 34 },
+  lockupRow: { flexDirection: 'row', alignItems: 'center', gap: space.md },
   brandRow: { flexDirection: 'row', alignItems: 'center', gap: space.md },
   brandLogo: { width: 96, height: 44 },
   brandMark: {
