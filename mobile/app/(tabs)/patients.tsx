@@ -251,15 +251,19 @@ function AddPatientModal({
   const { getIdToken } = useAuth();
   const c = useThemeColors();
   const styles = useStyles(makeStyles);
-  const [name, setName] = useState('');
+  const [firstName, setFirstName] = useState('');
+  const [lastName, setLastName] = useState('');
   const [age, setAge] = useState('');
   const [sex, setSex] = useState<PatientSex | null>(null);
   const [phone, setPhone] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  const canSubmit = firstName.trim().length > 0 && lastName.trim().length > 0;
+
   const reset = () => {
-    setName('');
+    setFirstName('');
+    setLastName('');
     setAge('');
     setSex(null);
     setPhone('');
@@ -268,13 +272,13 @@ function AddPatientModal({
   };
 
   const onSubmit = async () => {
-    if (submitting || name.trim().length === 0) return;
+    if (submitting || !canSubmit) return;
     setError(null);
     setSubmitting(true);
     try {
       const token = await getIdToken();
       const entry = await createPatient(token, {
-        name: name.trim(),
+        name: `${firstName.trim()} ${lastName.trim()}`,
         age_at_record: age ? Number.parseInt(age, 10) : undefined,
         sex: sex ?? undefined,
         phone: phone.trim() || undefined,
@@ -307,16 +311,29 @@ function AddPatientModal({
           </View>
           <Text style={styles.modalTitle}>Add a patient</Text>
 
-          <View style={{ gap: 6 }}>
-            <Text style={styles.label}>Name</Text>
-            <TextInput
-              style={styles.input}
-              value={name}
-              onChangeText={setName}
-              placeholder="Patient name"
-              placeholderTextColor={c.textDim}
-              autoCapitalize="words"
-            />
+          <View style={{ flexDirection: 'row', gap: space.sm }}>
+            <View style={{ flex: 1, gap: 6 }}>
+              <Text style={styles.label}>First name *</Text>
+              <TextInput
+                style={styles.input}
+                value={firstName}
+                onChangeText={setFirstName}
+                placeholder="First name"
+                placeholderTextColor={c.textDim}
+                autoCapitalize="words"
+              />
+            </View>
+            <View style={{ flex: 1, gap: 6 }}>
+              <Text style={styles.label}>Last name *</Text>
+              <TextInput
+                style={styles.input}
+                value={lastName}
+                onChangeText={setLastName}
+                placeholder="Last name"
+                placeholderTextColor={c.textDim}
+                autoCapitalize="words"
+              />
+            </View>
           </View>
 
           <View style={{ flexDirection: 'row', gap: space.sm }}>
@@ -368,10 +385,10 @@ function AddPatientModal({
 
           <Pressable
             onPress={() => void onSubmit()}
-            disabled={submitting || name.trim().length === 0}
+            disabled={submitting || !canSubmit}
             style={({ pressed }) => [
               styles.primaryBtn,
-              { opacity: submitting || name.trim().length === 0 ? 0.45 : pressed ? 0.85 : 1 },
+              { opacity: submitting || !canSubmit ? 0.45 : pressed ? 0.85 : 1 },
             ]}
           >
             {submitting ? (
