@@ -97,7 +97,8 @@ export default function SetupScreen() {
           <View style={styles.tagPill}>
             <Text style={styles.tagPillText}>Your profile (optional)</Text>
           </View>
-          <Field label="Display name" value={displayName} onChangeText={setDisplayName} placeholder="Dr. Jane Smith" />
+          <Field label="Your name" value={displayName} onChangeText={setDisplayName} placeholder="Jane Smith" />
+          <Text style={styles.fieldHint}>No need to add “Dr.” — we add it automatically.</Text>
           <Field label="Credentials" value={credentials} onChangeText={setCredentials} placeholder="MD" autoCapitalize="characters" />
 
           {error ? (
@@ -280,6 +281,7 @@ const makeStyles = (c: ThemeColors) => StyleSheet.create({
     letterSpacing: 0.8,
     textTransform: 'uppercase',
   },
+  fieldHint: { fontFamily: fonts.display, fontSize: font.size.xs, color: c.textMuted, marginTop: -2 },
   label: {
     fontSize: font.size.xs,
     color: c.textMuted,

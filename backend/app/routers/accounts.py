@@ -68,6 +68,19 @@ class MeResponse(BaseModel):
 # ─── Helpers ───────────────────────────────────────────────────────
 
 
+
+_HONORIFIC_RE = re.compile(r"^\s*(dr|doctor|prof|professor|mr|mrs|ms)\.?\s+", re.IGNORECASE)
+
+
+def _clean_display_name(name):
+    """Strip a leading honorific — the UI renders 'Dr. {name}', so a stored
+    'Dr. Nithin' would double up to 'Dr. Dr. Nithin'."""
+    if not name:
+        return name
+    cleaned = _HONORIFIC_RE.sub("", name).strip()
+    return cleaned or name
+
+
 def _slugify(s: str, fallback: str = "x") -> str:
     """Stable URL-safe slug. Adds a short random suffix to avoid collisions."""
     base = re.sub(r"[^a-z0-9]+", "-", s.lower()).strip("-")[:40] or fallback
@@ -199,7 +212,7 @@ def signup_org(body: CreateOrgRequest, user: CurrentUserDep) -> UserProfile:
     profile = UserProfile(
         email=user.email,
         phone=user.phone,
-        display_name=body.display_name,
+        display_name=_clean_display_name(body.display_name),
         credentials=body.credentials,
         registration_id=_next_registration_id(db),
         org_id=org_id,
@@ -277,7 +290,7 @@ def signup_invite(code: str, body: JoinInviteRequest, user: CurrentUserDep) -> U
     profile = UserProfile(
         email=user.email,
         phone=user.phone,
-        display_name=body.display_name,
+        display_name=_clean_display_name(body.display_name),
         credentials=body.credentials,
         registration_id=_next_registration_id(db),
         org_id=org_id,
