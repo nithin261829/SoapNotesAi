@@ -75,32 +75,22 @@ function AuthGate() {
 }
 
 function WebFrame({ children }: { children: React.ReactNode }) {
-  const { isDark, colors } = useTheme();
+  const { colors } = useTheme();
+  // Kill the browser's native focus ring — the app draws its own focus states.
+  useEffect(() => {
+    if (Platform.OS !== 'web' || typeof document === 'undefined') return;
+    const style = document.createElement('style');
+    style.textContent =
+      'input:focus, textarea:focus, select:focus, button:focus, div:focus, *:focus-visible { outline: none !important; box-shadow: none !important; }';
+    document.head.appendChild(style);
+    return () => style.remove();
+  }, []);
   if (Platform.OS !== 'web') return <>{children}</>;
-  // Desktop browsers: center the app as a portal column instead of stretching
-  // phone-first screens edge-to-edge across a wide monitor.
+  // Desktop browsers: center the app as a seamless column — backdrop matches
+  // the theme background so there are no visible edges or shadows.
   return (
-    <View
-      style={{
-        flex: 1,
-        alignItems: 'center',
-        backgroundColor: isDark ? '#0a0a0c' : '#e8e9ee',
-      }}
-    >
-      <View
-        style={{
-          flex: 1,
-          width: '100%',
-          maxWidth: 680,
-          backgroundColor: colors.bg,
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          ...(Platform.OS === 'web'
-            ? ({ boxShadow: '0 0 40px rgba(0,0,0,0.18)' } as any)
-            : null),
-        }}
-      >
-        {children}
-      </View>
+    <View style={{ flex: 1, alignItems: 'center', backgroundColor: colors.bg }}>
+      <View style={{ flex: 1, width: '100%', maxWidth: 680 }}>{children}</View>
     </View>
   );
 }
