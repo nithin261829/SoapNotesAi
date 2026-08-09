@@ -7,6 +7,7 @@ import {
 } from 'firebase/auth';
 
 import { requestPhoneLoginOtp, verifyPhoneLoginOtp } from '@/api/otp';
+import { Feather } from '@expo/vector-icons';
 import { useState } from 'react';
 import {
   ActivityIndicator,
@@ -28,6 +29,13 @@ import { fonts } from '@/theme/fonts';
 import { font, radii, space, type ThemeColors } from '@/theme/tokens';
 
 type Mode = 'signin' | 'signup';
+type Field = 'email' | 'password' | 'phone' | 'otp';
+
+const TRUST_MARKERS = [
+  { icon: 'mic', label: 'Voice → SOAP in seconds' },
+  { icon: 'lock', label: 'Encrypted patient data' },
+  { icon: 'check-circle', label: 'Verified-doctor letterheads' },
+] as const;
 
 export default function SignInScreen() {
   const c = useThemeColors();
@@ -45,8 +53,15 @@ export default function SignInScreen() {
   const [otpCode, setOtpCode] = useState('');
   const [otpSentTo, setOtpSentTo] = useState<string | null>(null);
   const [otpChannel, setOtpChannel] = useState<string | null>(null);
+  // Visual only — drives the focused-border treatment on inputs.
+  const [focused, setFocused] = useState<Field | null>(null);
 
   const phoneValid = /^[6-9]\d{9}$/.test(phone.replace(/\D/g, '').replace(/^(91|0)/, ''));
+
+  const inputStyle = (field: Field) => [
+    styles.input,
+    focused === field && styles.inputFocused,
+  ];
 
   const onSendPhoneOtp = async () => {
     if (submitting || !phoneValid) return;
@@ -110,6 +125,8 @@ export default function SignInScreen() {
     }
   };
 
+  const phonePrimaryDisabled = submitting || (otpSentTo ? otpCode.length < 6 : !phoneValid);
+
   return (
     <KeyboardAvoidingView
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
@@ -121,7 +138,7 @@ export default function SignInScreen() {
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
       >
-        {/* Hero — wellness-clinic feel */}
+        {/* Hero — brand-forward, editorial */}
         <View style={styles.hero}>
           <View style={styles.brandRow}>
             <Image
@@ -130,6 +147,7 @@ export default function SignInScreen() {
               resizeMode="contain"
               accessibilityLabel="SoapNotesAi"
             />
+            <View style={styles.brandDivider} />
             <View>
               <Text style={styles.brandTitle}>SoapNotesAi</Text>
               <Text style={styles.brandEyebrow}>Voice to SOAP notes</Text>
@@ -151,6 +169,16 @@ export default function SignInScreen() {
               ? 'Pick up where you left off. Your patients and recordings are right where you left them.'
               : 'Dictate a session, the AI drafts the SOAP, you review and sign. Built for the rhythm of a busy clinic.'}
           </Text>
+
+          {/* Trust markers */}
+          <View style={styles.trustRow}>
+            {TRUST_MARKERS.map((t) => (
+              <View key={t.icon} style={styles.trustItem}>
+                <Feather name={t.icon} size={13} color={c.accent} />
+                <Text style={styles.trustText}>{t.label}</Text>
+              </View>
+            ))}
+          </View>
         </View>
 
         {/* Method toggle: Email | Mobile OTP */}
@@ -179,20 +207,27 @@ export default function SignInScreen() {
         </View>
 
         {method === 'phone' ? (
+          <View style={styles.cardShadow}>
           <View style={styles.card}>
+            <View pointerEvents="none" style={styles.cardGlow} />
+            <View pointerEvents="none" style={styles.cardSheen} />
             <View style={styles.fieldGroup}>
               <Text style={styles.label}>Mobile number (India)</Text>
               <View style={styles.phoneRow}>
-                <Text style={styles.phonePrefix}>+91</Text>
+                <View style={styles.phonePrefixBox}>
+                  <Text style={styles.phonePrefix}>+91</Text>
+                </View>
                 <TextInput
                   value={phone}
                   onChangeText={(t) => setPhone(t.replace(/\D/g, '').slice(0, 10))}
                   keyboardType="number-pad"
                   placeholder="98765 43210"
-                  placeholderTextColor={c.textDim}
-                  style={[styles.input, { flex: 1 }]}
+                  placeholderTextColor={c.textSubtle}
+                  style={[...inputStyle('phone'), { flex: 1 }]}
                   editable={!submitting && !otpSentTo}
                   maxLength={10}
+                  onFocus={() => setFocused('phone')}
+                  onBlur={() => setFocused(null)}
                 />
               </View>
             </View>
@@ -206,11 +241,13 @@ export default function SignInScreen() {
                     onChangeText={(t) => setOtpCode(t.replace(/\D/g, '').slice(0, 6))}
                     keyboardType="number-pad"
                     placeholder="••••••"
-                    placeholderTextColor={c.textDim}
-                    style={styles.input}
+                    placeholderTextColor={c.textSubtle}
+                    style={inputStyle('otp')}
                     editable={!submitting}
                     maxLength={6}
                     autoFocus
+                    onFocus={() => setFocused('otp')}
+                    onBlur={() => setFocused(null)}
                   />
                 </View>
                 <Text style={styles.otpHint}>
@@ -229,22 +266,16 @@ export default function SignInScreen() {
 
             <Pressable
               accessibilityRole="button"
-              disabled={submitting || (otpSentTo ? otpCode.length < 6 : !phoneValid)}
+              disabled={phonePrimaryDisabled}
               onPress={() => void (otpSentTo ? onVerifyPhoneOtp() : onSendPhoneOtp())}
               style={({ pressed }) => [
                 styles.primaryBtn,
-                {
-                  opacity:
-                    submitting || (otpSentTo ? otpCode.length < 6 : !phoneValid)
-                      ? 0.45
-                      : pressed
-                        ? 0.85
-                        : 1,
-                },
+                pressed && !phonePrimaryDisabled && styles.primaryBtnPressed,
+                { opacity: phonePrimaryDisabled ? 0.45 : 1 },
               ]}
             >
               {submitting ? (
-                <ActivityIndicator color="#FFFFFF" />
+                <ActivityIndicator color={c.textOnAccent} />
               ) : (
                 <Text style={styles.primaryBtnLabel}>
                   {otpSentTo ? 'VERIFY & SIGN IN  →' : 'GET OTP  →'}
@@ -265,8 +296,12 @@ export default function SignInScreen() {
               </Pressable>
             ) : null}
           </View>
+          </View>
         ) : (
+        <View style={styles.cardShadow}>
         <View style={styles.card}>
+          <View pointerEvents="none" style={styles.cardGlow} />
+          <View pointerEvents="none" style={styles.cardSheen} />
           <View style={styles.fieldGroup}>
             <Text style={styles.label}>Email</Text>
             <TextInput
@@ -278,9 +313,11 @@ export default function SignInScreen() {
               keyboardType="email-address"
               textContentType="emailAddress"
               placeholder="doctor@clinic.com"
-              placeholderTextColor={c.textDim}
-              style={styles.input}
+              placeholderTextColor={c.textSubtle}
+              style={inputStyle('email')}
               editable={!submitting}
+              onFocus={() => setFocused('email')}
+              onBlur={() => setFocused(null)}
             />
           </View>
 
@@ -295,10 +332,12 @@ export default function SignInScreen() {
               autoComplete={mode === 'signin' ? 'current-password' : 'new-password'}
               textContentType={mode === 'signin' ? 'password' : 'newPassword'}
               placeholder="At least 6 characters"
-              placeholderTextColor={c.textDim}
-              style={styles.input}
+              placeholderTextColor={c.textSubtle}
+              style={inputStyle('password')}
               editable={!submitting}
               onSubmitEditing={() => void onSubmit()}
+              onFocus={() => setFocused('password')}
+              onBlur={() => setFocused(null)}
             />
           </View>
 
@@ -335,11 +374,12 @@ export default function SignInScreen() {
             onPress={() => void onSubmit()}
             style={({ pressed }) => [
               styles.primaryBtn,
-              { opacity: submitDisabled ? 0.45 : pressed ? 0.85 : 1 },
+              pressed && !submitDisabled && styles.primaryBtnPressed,
+              { opacity: submitDisabled ? 0.45 : 1 },
             ]}
           >
             {submitting ? (
-              <ActivityIndicator color="#FFFFFF" />
+              <ActivityIndicator color={c.textOnAccent} />
             ) : (
               <Text style={styles.primaryBtnLabel}>
                 {mode === 'signin' ? 'SIGN IN  →' : 'CREATE ACCOUNT  →'}
@@ -360,7 +400,8 @@ export default function SignInScreen() {
             onPress={() => void google.signIn()}
             style={({ pressed }) => [
               styles.googleBtn,
-              { opacity: google.inProgress || submitting ? 0.55 : pressed ? 0.85 : 1 },
+              pressed && !(google.inProgress || submitting) && styles.primaryBtnPressed,
+              { opacity: google.inProgress || submitting ? 0.55 : 1 },
             ]}
           >
             {google.inProgress ? (
@@ -375,6 +416,7 @@ export default function SignInScreen() {
           {google.error ? (
             <Text style={styles.googleError}>{google.error}</Text>
           ) : null}
+        </View>
         </View>
         )}
 
@@ -399,9 +441,12 @@ export default function SignInScreen() {
         </View>
         ) : null}
 
-        <Text style={styles.disclaimer}>
-          Draft assistive tool · review and sign every note before clinical use.
-        </Text>
+        <View style={styles.footer}>
+          <Text style={styles.disclaimer}>
+            Draft assistive tool · review and sign every note before clinical use.
+          </Text>
+          <Text style={styles.footerMeta}>© SoapNotesAi · soapnotesai.web.app</Text>
+        </View>
       </ScrollView>
     </KeyboardAvoidingView>
   );
@@ -444,6 +489,8 @@ function humanizeAuthError(e: unknown): string {
   }
 }
 
+const CONTROL_HEIGHT = 52;
+
 const makeStyles = (c: ThemeColors) => StyleSheet.create({
   kav: { flex: 1, backgroundColor: c.bg },
   scroll: { backgroundColor: c.bg },
@@ -456,33 +503,13 @@ const makeStyles = (c: ThemeColors) => StyleSheet.create({
   },
 
   // ─── Hero ───────────────────────────────────────────────
-  hero: { gap: space.sm, marginBottom: space.lg },
+  hero: { gap: space.sm, marginBottom: space.md },
   brandRow: { flexDirection: 'row', alignItems: 'center', gap: space.md },
-  brandLogo: { width: 96, height: 44 },
-  brandMark: {
-    width: 56,
-    height: 56,
-    borderRadius: 16,
-    backgroundColor: c.accent,
-    alignItems: 'center',
-    justifyContent: 'center',
-    position: 'relative',
-  },
-  brandMarkText: {
-    fontFamily: fonts.displayExtra,
-    fontSize: 30,
-    color: '#FFFFFF',
-    letterSpacing: -1.5,
-    includeFontPadding: false,
-  },
-  brandDot: {
-    position: 'absolute',
-    width: 14,
-    height: 14,
-    borderRadius: 4,
-    backgroundColor: c.accentAlt,
-    top: -2,
-    right: -2,
+  brandLogo: { width: 96, height: 40 },
+  brandDivider: {
+    width: StyleSheet.hairlineWidth * 2,
+    height: 32,
+    backgroundColor: c.borderStrong,
   },
   brandTitle: {
     fontFamily: fonts.displayBold,
@@ -527,36 +554,73 @@ const makeStyles = (c: ThemeColors) => StyleSheet.create({
     color: c.textMuted,
     lineHeight: 22,
     marginTop: space.md,
+    maxWidth: 520,
   },
 
+  // Trust markers — quiet credibility row; wraps to two lines on phones,
+  // sits on one line inside the 680px web column.
+  trustRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    alignItems: 'center',
+    columnGap: space.lg,
+    rowGap: space.sm,
+    marginTop: space.base,
+  },
+  trustItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  trustText: {
+    fontFamily: fonts.displayMedium,
+    fontSize: font.size.sm,
+    color: c.textMuted,
+    letterSpacing: 0.2,
+  },
+
+  // ─── Method toggle ──────────────────────────────────────
   methodRow: {
     flexDirection: 'row',
-    gap: 6,
+    gap: 4,
     padding: 4,
-    backgroundColor: c.surfaceElevated,
-    borderRadius: radii.md,
+    backgroundColor: c.surface,
+    borderRadius: radii.lg,
     borderWidth: 1,
     borderColor: c.border,
   },
   methodBtn: {
     flex: 1,
     alignItems: 'center',
-    paddingVertical: 10,
-    borderRadius: radii.sm,
+    justifyContent: 'center',
+    height: 40,
+    borderRadius: radii.md,
   },
   methodBtnActive: { backgroundColor: c.accent },
   methodText: {
     fontFamily: fonts.displayBold,
     color: c.textMuted,
     fontSize: font.size.xs,
-    letterSpacing: 0.8,
+    letterSpacing: 1,
   },
-  methodTextActive: { color: '#FFFFFF' },
+  methodTextActive: { color: c.textOnAccent },
+
   phoneRow: { flexDirection: 'row', alignItems: 'center', gap: space.sm },
+  phonePrefixBox: {
+    height: CONTROL_HEIGHT,
+    paddingHorizontal: space.md,
+    borderRadius: radii.md,
+    borderWidth: 1,
+    borderColor: c.border,
+    backgroundColor: c.surfaceElevated,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   phonePrefix: {
-    fontFamily: fonts.displayBold,
+    fontFamily: fonts.displaySemi,
     color: c.text,
     fontSize: font.size.base,
+    letterSpacing: 0.5,
   },
   otpHint: {
     fontFamily: fonts.display,
@@ -565,20 +629,46 @@ const makeStyles = (c: ThemeColors) => StyleSheet.create({
     lineHeight: 19,
   },
 
-  // ─── Card ───────────────────────────────────────────────
-  card: {
+  // ─── Card — glass / elevated ────────────────────────────
+  cardShadow: {
+    borderRadius: radii.xl,
     backgroundColor: c.surface,
-    borderRadius: radii.lg,
-    borderWidth: 1,
-    borderColor: c.border,
-    padding: space.lg,
-    gap: space.base,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.04,
-    shadowRadius: 8,
-    elevation: 2,
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.18,
+    shadowRadius: 24,
+    elevation: 6,
   },
+  card: {
+    overflow: 'hidden',
+    backgroundColor: c.surface,
+    borderRadius: radii.xl,
+    borderWidth: 1,
+    borderColor: c.borderStrong,
+    padding: space.lg,
+    paddingTop: space.xl,
+    gap: space.base,
+  },
+  // Soft accent wash bleeding from the top edge — the "inner glow".
+  cardGlow: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    height: 110,
+    backgroundColor: c.accentSoft,
+    opacity: 0.55,
+  },
+  // 1px light catch on the top edge — reads as a glass highlight.
+  cardSheen: {
+    position: 'absolute',
+    top: 0,
+    left: space.base,
+    right: space.base,
+    height: 1,
+    backgroundColor: 'rgba(255, 255, 255, 0.14)',
+  },
+
   fieldGroup: { gap: 6 },
   label: {
     fontFamily: fonts.displayBold,
@@ -588,15 +678,19 @@ const makeStyles = (c: ThemeColors) => StyleSheet.create({
     textTransform: 'uppercase',
   },
   input: {
+    height: CONTROL_HEIGHT,
     backgroundColor: c.surfaceElevated,
     borderWidth: 1,
     borderColor: c.border,
     borderRadius: radii.md,
-    paddingHorizontal: space.md,
-    paddingVertical: Platform.OS === 'ios' ? 14 : 10,
+    paddingHorizontal: space.base,
     color: c.text,
     fontFamily: fonts.display,
-    fontSize: font.size.base,
+    fontSize: font.size.md,
+  },
+  inputFocused: {
+    borderColor: c.borderAccent,
+    backgroundColor: c.surfaceHover,
   },
   errorBox: {
     backgroundColor: c.dangerSoft,
@@ -631,46 +725,53 @@ const makeStyles = (c: ThemeColors) => StyleSheet.create({
     lineHeight: 19,
   },
 
+  // ─── Buttons ────────────────────────────────────────────
   primaryBtn: {
     marginTop: space.xs,
-    paddingVertical: space.md + 4,
+    height: CONTROL_HEIGHT + 2,
     paddingHorizontal: space.lg,
     borderRadius: radii.md,
     backgroundColor: c.accent,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.16)',
     alignItems: 'center',
+    justifyContent: 'center',
+  },
+  primaryBtnPressed: {
+    transform: [{ scale: 0.98 }],
+    backgroundColor: c.accentDim,
   },
   primaryBtnLabel: {
     fontFamily: fonts.displayBold,
-    color: '#FFFFFF',
-    fontSize: font.size.sm,
-    letterSpacing: 1.4,
+    color: c.textOnAccent,
+    fontSize: font.size.base,
+    letterSpacing: 1.6,
   },
 
   dividerRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: space.sm,
+    gap: space.md,
     marginTop: space.sm,
   },
-  dividerLine: { flex: 1, height: 1, backgroundColor: c.border },
+  dividerLine: { flex: 1, height: StyleSheet.hairlineWidth, backgroundColor: c.borderStrong },
   dividerText: {
     fontFamily: fonts.displayBold,
     fontSize: font.size.xs - 1,
-    color: c.textMuted,
-    letterSpacing: 1.2,
+    color: c.textSubtle,
+    letterSpacing: 2,
   },
   googleBtn: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     gap: space.sm,
-    paddingVertical: space.md + 2,
+    height: CONTROL_HEIGHT,
     paddingHorizontal: space.lg,
     borderRadius: radii.md,
     backgroundColor: c.surfaceElevated,
     borderWidth: 1,
     borderColor: c.borderStrong,
-    minHeight: 50,
   },
   googleG: {
     fontFamily: fonts.displayBold,
@@ -681,8 +782,8 @@ const makeStyles = (c: ThemeColors) => StyleSheet.create({
   googleBtnLabel: {
     fontFamily: fonts.displaySemi,
     color: c.text,
-    fontSize: font.size.sm,
-    letterSpacing: 0.4,
+    fontSize: font.size.base,
+    letterSpacing: 0.3,
   },
   googleError: {
     fontFamily: fonts.display,
@@ -710,13 +811,25 @@ const makeStyles = (c: ThemeColors) => StyleSheet.create({
     letterSpacing: 0.5,
   },
 
-  disclaimer: {
+  // ─── Footer ─────────────────────────────────────────────
+  footer: {
     marginTop: 'auto',
+    paddingTop: space.lg,
+    gap: space.xs,
+    alignItems: 'center',
+  },
+  disclaimer: {
     fontFamily: fonts.serifItalic,
     fontSize: font.size.xs + 1,
     color: c.textDim,
     textAlign: 'center',
     lineHeight: 17,
-    paddingTop: space.md,
+  },
+  footerMeta: {
+    fontFamily: fonts.displayMedium,
+    fontSize: font.size.xs,
+    color: c.textDim,
+    letterSpacing: 0.6,
+    textAlign: 'center',
   },
 });
