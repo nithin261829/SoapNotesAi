@@ -1,7 +1,10 @@
 import { Feather } from '@expo/vector-icons';
 import { Stack, useRouter } from 'expo-router';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { useState } from 'react';
+import { Pressable, ScrollView, StyleSheet, Switch, Text, View } from 'react-native';
 
+import { updateMe } from '@/api/accounts';
+import { useAuth } from '@/auth/AuthContext';
 import { useStyles, useTheme, useThemeColors } from '@/theme/ThemeContext';
 import { fonts } from '@/theme/fonts';
 import { font, radii, space, type ThemeColors } from '@/theme/tokens';
@@ -16,8 +19,27 @@ const MODE_OPTIONS: { value: Mode; label: string; icon: React.ComponentProps<typ
 export default function SettingsScreen() {
   const router = useRouter();
   const { mode, setMode } = useTheme();
+  const { profile, getIdToken, refreshProfile } = useAuth();
   const c = useThemeColors();
   const styles = useStyles(makeStyles);
+  const [remindersEnabled, setRemindersEnabled] = useState(
+    profile?.profile.reminders_enabled ?? true,
+  );
+  const [savingReminders, setSavingReminders] = useState(false);
+
+  const onToggleReminders = async (next: boolean) => {
+    setRemindersEnabled(next); // optimistic
+    setSavingReminders(true);
+    try {
+      const token = await getIdToken();
+      await updateMe(token, { reminders_enabled: next });
+      await refreshProfile();
+    } catch {
+      setRemindersEnabled(!next); // revert on failure
+    } finally {
+      setSavingReminders(false);
+    }
+  };
 
   return (
     <View style={styles.container}>
@@ -46,56 +68,27 @@ export default function SettingsScreen() {
       <ScrollView contentContainerStyle={styles.scroll}>
         <Text style={styles.pageTitle}>Settings</Text>
 
-        {/* Payments & plans — wallet top-ups, subscription tiers (Razorpay) */}
-        <Pressable
-          onPress={() => router.push('/payments' as never)}
-          accessibilityRole="button"
-          accessibilityLabel="Open payments and plans"
-          style={({ pressed }) => [styles.linkRow, { opacity: pressed ? 0.85 : 1 }]}
-        >
-          <View style={styles.linkIcon}>
-            <Feather name="credit-card" size={18} color={c.accent} />
+        {/* Notifications — follow-up reminder push alerts for the doctor */}
+        <View style={styles.card}>
+          <View style={styles.tagPill}>
+            <Text style={styles.tagPillText}>Notifications</Text>
           </View>
-          <View style={{ flex: 1 }}>
-            <Text style={styles.linkLabel}>Payments & Plans</Text>
-            <Text style={styles.linkHint}>Wallet, subscriptions, and top-ups</Text>
+          <View style={styles.toggleRow}>
+            <View style={{ flex: 1, paddingRight: space.md }}>
+              <Text style={styles.toggleLabel}>Follow-up reminders</Text>
+              <Text style={styles.hint}>
+                Get a push alert the day before and the day of a patient&apos;s follow-up.
+              </Text>
+            </View>
+            <Switch
+              value={remindersEnabled}
+              onValueChange={onToggleReminders}
+              disabled={savingReminders}
+              trackColor={{ false: c.border, true: c.accent }}
+              thumbColor="#FFFFFF"
+            />
           </View>
-          <Feather name="chevron-right" size={20} color={c.textSubtle} />
-        </Pressable>
-
-        {/* Doctor verification — medical-council proof upload, verified PDF badge */}
-        <Pressable
-          onPress={() => router.push('/verification' as never)}
-          accessibilityRole="button"
-          accessibilityLabel="Open doctor verification"
-          style={({ pressed }) => [styles.linkRow, { opacity: pressed ? 0.85 : 1 }]}
-        >
-          <View style={styles.linkIcon}>
-            <Feather name="shield" size={18} color={c.accent} />
-          </View>
-          <View style={{ flex: 1 }}>
-            <Text style={styles.linkLabel}>Doctor Verification</Text>
-            <Text style={styles.linkHint}>Get the verified badge on your PDFs</Text>
-          </View>
-          <Feather name="chevron-right" size={20} color={c.textSubtle} />
-        </Pressable>
-
-        {/* Letterhead — clinic branding printed on every PDF */}
-        <Pressable
-          onPress={() => router.push('/letterhead' as never)}
-          accessibilityRole="button"
-          accessibilityLabel="Open letterhead settings"
-          style={({ pressed }) => [styles.linkRow, { opacity: pressed ? 0.85 : 1 }]}
-        >
-          <View style={styles.linkIcon}>
-            <Feather name="file-text" size={18} color={c.accent} />
-          </View>
-          <View style={{ flex: 1 }}>
-            <Text style={styles.linkLabel}>Letterhead</Text>
-            <Text style={styles.linkHint}>Clinic branding printed on every PDF</Text>
-          </View>
-          <Feather name="chevron-right" size={20} color={c.textSubtle} />
-        </Pressable>
+        </View>
 
         <View style={styles.card}>
           <View style={styles.tagPill}>
@@ -134,6 +127,8 @@ export default function SettingsScreen() {
 const makeStyles = (c: ThemeColors) =>
   StyleSheet.create({
     container: { flex: 1, backgroundColor: c.bg },
+    toggleRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 4 },
+    toggleLabel: { fontFamily: fonts.displaySemi, fontSize: font.size.base, color: c.text },
     scroll: { padding: space.lg, gap: space.lg, paddingBottom: 60 },
     backBtn: { flexDirection: 'row', alignItems: 'center', gap: 2, paddingHorizontal: 4 },
     backText: {

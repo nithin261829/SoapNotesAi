@@ -26,6 +26,7 @@ export interface UserProfile {
   org_id: string;
   default_clinic_id: string | null;
   memberships: ClinicMembership[];
+  reminders_enabled: boolean;
   created_at: string;
   updated_at: string;
 }
@@ -73,6 +74,7 @@ export interface UpdateProfileParams {
   display_name?: string;
   credentials?: string;
   phone?: string;
+  reminders_enabled?: boolean;
 }
 
 export async function updateMe(idToken: string, params: UpdateProfileParams): Promise<MeResponse> {

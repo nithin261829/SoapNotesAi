@@ -315,6 +315,7 @@ class UpdateProfileRequest(BaseModel):
     display_name: Optional[str] = Field(None, max_length=120)
     credentials: Optional[str] = Field(None, max_length=40)
     phone: Optional[str] = Field(None, max_length=20)
+    reminders_enabled: Optional[bool] = None
 
 
 @router.patch("/me", response_model=MeResponse)
@@ -333,6 +334,8 @@ def update_me(body: UpdateProfileRequest, user: TenantUserDep) -> MeResponse:
         patch["credentials"] = body.credentials.strip() or None
     if body.phone is not None:
         patch["phone"] = body.phone.strip() or None
+    if body.reminders_enabled is not None:
+        patch["reminders_enabled"] = body.reminders_enabled
     ref.update(patch)
 
     logger.info("profile_updated uid=%s", user.uid)

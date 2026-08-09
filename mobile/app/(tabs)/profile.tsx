@@ -250,46 +250,50 @@ export default function ProfileScreen() {
         </>
       ) : null}
 
-      {/* ── Preferences ─────────────────────────────────────────────── */}
-      <Text style={styles.sectionLabel}>Preferences</Text>
+      {/* ── Manage ──────────────────────────────────────────────────── */}
+      <Text style={styles.sectionLabel}>Manage</Text>
       <View style={styles.card}>
-        <Pressable
+        <ManageRow
+          icon="shield"
+          label="Doctor verification"
+          hint={
+            verified === 'verified'
+              ? 'Verified — badge prints on your PDFs'
+              : verified === 'pending'
+                ? 'Documents under review'
+                : 'Get the verified badge on your PDFs'
+          }
           onPress={() => router.push('/verification' as never)}
-          accessibilityRole="button"
-          accessibilityLabel="Doctor verification"
-          style={({ pressed }) => [styles.listRow, { opacity: pressed ? 0.7 : 1 }]}
-        >
-          <View style={styles.listIcon}>
-            <Feather name="shield" size={17} color={c.accent} />
-          </View>
-          <View style={{ flex: 1 }}>
-            <Text style={styles.listLabel}>Doctor verification</Text>
-            <Text style={styles.listHint}>
-              {verified === 'verified'
-                ? 'Verified — badge prints on your PDFs'
-                : verified === 'pending'
-                  ? 'Documents under review'
-                  : 'Get the verified badge on your PDFs'}
-            </Text>
-          </View>
-          <Feather name="chevron-right" size={20} color={c.textSubtle} />
-        </Pressable>
+          styles={styles}
+          c={c}
+        />
         <View style={styles.rowDivider} />
-        <Pressable
+        <ManageRow
+          icon="credit-card"
+          label="Payments & Plans"
+          hint="Wallet, subscriptions, and top-ups"
+          onPress={() => router.push('/payments' as never)}
+          styles={styles}
+          c={c}
+        />
+        <View style={styles.rowDivider} />
+        <ManageRow
+          icon="file-text"
+          label="Letterhead"
+          hint="Clinic branding printed on every PDF"
+          onPress={() => router.push('/letterhead' as never)}
+          styles={styles}
+          c={c}
+        />
+        <View style={styles.rowDivider} />
+        <ManageRow
+          icon="settings"
+          label="Settings"
+          hint="Appearance and notifications"
           onPress={() => router.push('/settings')}
-          accessibilityRole="button"
-          accessibilityLabel="Open settings"
-          style={({ pressed }) => [styles.listRow, { opacity: pressed ? 0.7 : 1 }]}
-        >
-          <View style={styles.listIcon}>
-            <Feather name="settings" size={17} color={c.accent} />
-          </View>
-          <View style={{ flex: 1 }}>
-            <Text style={styles.listLabel}>Settings</Text>
-            <Text style={styles.listHint}>Appearance and preferences</Text>
-          </View>
-          <Feather name="chevron-right" size={20} color={c.textSubtle} />
-        </Pressable>
+          styles={styles}
+          c={c}
+        />
       </View>
 
       {/* ── Sign out ────────────────────────────────────────────────── */}
@@ -323,6 +327,42 @@ export default function ProfileScreen() {
         }}
       />
     </ScrollView>
+  );
+}
+
+function ManageRow({
+  icon,
+  label,
+  hint,
+  onPress,
+  styles,
+  c,
+}: {
+  icon: React.ComponentProps<typeof Feather>['name'];
+  label: string;
+  hint: string;
+  onPress: () => void;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  styles: any;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  c: any;
+}) {
+  return (
+    <Pressable
+      onPress={onPress}
+      accessibilityRole="button"
+      accessibilityLabel={label}
+      style={({ pressed }) => [styles.listRow, { opacity: pressed ? 0.7 : 1 }]}
+    >
+      <View style={styles.listIcon}>
+        <Feather name={icon} size={17} color={c.accent} />
+      </View>
+      <View style={{ flex: 1 }}>
+        <Text style={styles.listLabel}>{label}</Text>
+        <Text style={styles.listHint}>{hint}</Text>
+      </View>
+      <Feather name="chevron-right" size={20} color={c.textSubtle} />
+    </Pressable>
   );
 }
 

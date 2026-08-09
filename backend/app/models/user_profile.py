@@ -43,5 +43,6 @@ class UserProfile(FirestoreModel):
     org_id: str
     default_clinic_id: Optional[str] = None
     memberships: list[ClinicMembership] = Field(default_factory=list)
+    reminders_enabled: bool = True
     created_at: datetime = Field(default_factory=utc_now)
     updated_at: datetime = Field(default_factory=utc_now)

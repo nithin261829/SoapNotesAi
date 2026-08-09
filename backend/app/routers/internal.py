@@ -102,6 +102,8 @@ def run_reminders(
             u = user_snap.to_dict() or {}
             if not u.get("push_token"):
                 continue
+            if u.get("reminders_enabled") is False:
+                continue  # doctor turned reminders off
             clinic_ids = {
                 m.get("clinic_id")
                 for m in (u.get("memberships") or [])
