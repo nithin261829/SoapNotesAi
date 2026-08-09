@@ -55,3 +55,31 @@ export async function verifyOtp(idToken: string, code: string): Promise<OtpStatu
   });
   return jsonOrThrow<OtpStatus>(res);
 }
+
+// ─── Phone-number login (no auth — the OTP is the login) ───────────
+
+const plainHeaders = {
+  'Content-Type': 'application/json',
+  'ngrok-skip-browser-warning': 'true',
+};
+
+export async function requestPhoneLoginOtp(phone: string): Promise<OtpRequestResult> {
+  const res = await fetch(`${BASE_URL}/auth/otp/phone/request`, {
+    method: 'POST',
+    headers: plainHeaders,
+    body: JSON.stringify({ phone }),
+  });
+  return jsonOrThrow<OtpRequestResult>(res);
+}
+
+export async function verifyPhoneLoginOtp(
+  phone: string,
+  code: string,
+): Promise<{ custom_token: string }> {
+  const res = await fetch(`${BASE_URL}/auth/otp/phone/verify`, {
+    method: 'POST',
+    headers: plainHeaders,
+    body: JSON.stringify({ phone, code }),
+  });
+  return jsonOrThrow<{ custom_token: string }>(res);
+}

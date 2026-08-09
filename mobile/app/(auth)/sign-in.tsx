@@ -2,11 +2,15 @@ import {
   createUserWithEmailAndPassword,
   type AuthError,
   sendPasswordResetEmail,
+  signInWithCustomToken,
   signInWithEmailAndPassword,
 } from 'firebase/auth';
+
+import { requestPhoneLoginOtp, verifyPhoneLoginOtp } from '@/api/otp';
 import { useState } from 'react';
 import {
   ActivityIndicator,
+  Image,
   KeyboardAvoidingView,
   Platform,
   Pressable,
@@ -35,6 +39,42 @@ export default function SignInScreen() {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [resetSent, setResetSent] = useState(false);
+  // Mobile-OTP login (Indian numbers). The 6-digit code IS the password.
+  const [method, setMethod] = useState<'email' | 'phone'>('email');
+  const [phone, setPhone] = useState('');
+  const [otpCode, setOtpCode] = useState('');
+  const [otpSentTo, setOtpSentTo] = useState<string | null>(null);
+  const [otpChannel, setOtpChannel] = useState<string | null>(null);
+
+  const phoneValid = /^[6-9]\d{9}$/.test(phone.replace(/\D/g, '').replace(/^(91|0)/, ''));
+
+  const onSendPhoneOtp = async () => {
+    if (submitting || !phoneValid) return;
+    setError(null);
+    setSubmitting(true);
+    try {
+      const info = await requestPhoneLoginOtp(phone);
+      setOtpSentTo(info.sent_to);
+      setOtpChannel(info.channel);
+    } catch (e) {
+      setError(humanizePhoneError(e));
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const onVerifyPhoneOtp = async () => {
+    if (submitting || otpCode.length < 6) return;
+    setError(null);
+    setSubmitting(true);
+    try {
+      const { custom_token } = await verifyPhoneLoginOtp(phone, otpCode);
+      await signInWithCustomToken(firebaseAuth, custom_token);
+    } catch (e) {
+      setError(humanizePhoneError(e));
+      setSubmitting(false);
+    }
+  };
 
   const onForgotPassword = async () => {
     const addr = email.trim();
@@ -84,13 +124,15 @@ export default function SignInScreen() {
         {/* Hero — wellness-clinic feel */}
         <View style={styles.hero}>
           <View style={styles.brandRow}>
-            <View style={styles.brandMark}>
-              <Text style={styles.brandMarkText}>P</Text>
-              <View style={styles.brandDot} />
-            </View>
+            <Image
+              source={require('../../assets/logo.png')}
+              style={styles.brandLogo}
+              resizeMode="contain"
+              accessibilityLabel="SoapNotesAi"
+            />
             <View>
               <Text style={styles.brandTitle}>SoapNotesAi</Text>
-              <Text style={styles.brandEyebrow}>SOAP-notes for clinicians</Text>
+              <Text style={styles.brandEyebrow}>Voice to SOAP notes</Text>
             </View>
           </View>
 
@@ -111,7 +153,119 @@ export default function SignInScreen() {
           </Text>
         </View>
 
-        {/* Form */}
+        {/* Method toggle: Email | Mobile OTP */}
+        <View style={styles.methodRow}>
+          {(
+            [
+              { key: 'email', label: 'EMAIL' },
+              { key: 'phone', label: 'MOBILE OTP' },
+            ] as const
+          ).map((m) => (
+            <Pressable
+              key={m.key}
+              onPress={() => {
+                setMethod(m.key);
+                setError(null);
+              }}
+              style={[styles.methodBtn, method === m.key && styles.methodBtnActive]}
+            >
+              <Text
+                style={[styles.methodText, method === m.key && styles.methodTextActive]}
+              >
+                {m.label}
+              </Text>
+            </Pressable>
+          ))}
+        </View>
+
+        {method === 'phone' ? (
+          <View style={styles.card}>
+            <View style={styles.fieldGroup}>
+              <Text style={styles.label}>Mobile number (India)</Text>
+              <View style={styles.phoneRow}>
+                <Text style={styles.phonePrefix}>+91</Text>
+                <TextInput
+                  value={phone}
+                  onChangeText={(t) => setPhone(t.replace(/\D/g, '').slice(0, 10))}
+                  keyboardType="number-pad"
+                  placeholder="98765 43210"
+                  placeholderTextColor={c.textDim}
+                  style={[styles.input, { flex: 1 }]}
+                  editable={!submitting && !otpSentTo}
+                  maxLength={10}
+                />
+              </View>
+            </View>
+
+            {otpSentTo ? (
+              <>
+                <View style={styles.fieldGroup}>
+                  <Text style={styles.label}>6-digit code</Text>
+                  <TextInput
+                    value={otpCode}
+                    onChangeText={(t) => setOtpCode(t.replace(/\D/g, '').slice(0, 6))}
+                    keyboardType="number-pad"
+                    placeholder="••••••"
+                    placeholderTextColor={c.textDim}
+                    style={styles.input}
+                    editable={!submitting}
+                    maxLength={6}
+                    autoFocus
+                  />
+                </View>
+                <Text style={styles.otpHint}>
+                  {otpChannel === 'dev_log'
+                    ? 'Dev mode: SMS not configured yet — the code is on the backend console.'
+                    : `Code sent to ${otpSentTo}.`}
+                </Text>
+              </>
+            ) : null}
+
+            {error ? (
+              <View style={styles.errorBox}>
+                <Text style={styles.errorText}>{error}</Text>
+              </View>
+            ) : null}
+
+            <Pressable
+              accessibilityRole="button"
+              disabled={submitting || (otpSentTo ? otpCode.length < 6 : !phoneValid)}
+              onPress={() => void (otpSentTo ? onVerifyPhoneOtp() : onSendPhoneOtp())}
+              style={({ pressed }) => [
+                styles.primaryBtn,
+                {
+                  opacity:
+                    submitting || (otpSentTo ? otpCode.length < 6 : !phoneValid)
+                      ? 0.45
+                      : pressed
+                        ? 0.85
+                        : 1,
+                },
+              ]}
+            >
+              {submitting ? (
+                <ActivityIndicator color="#FFFFFF" />
+              ) : (
+                <Text style={styles.primaryBtnLabel}>
+                  {otpSentTo ? 'VERIFY & SIGN IN  →' : 'GET OTP  →'}
+                </Text>
+              )}
+            </Pressable>
+
+            {otpSentTo ? (
+              <Pressable
+                onPress={() => {
+                  setOtpSentTo(null);
+                  setOtpCode('');
+                  setError(null);
+                }}
+                hitSlop={8}
+              >
+                <Text style={styles.toggleLink}>Change number / resend</Text>
+              </Pressable>
+            ) : null}
+          </View>
+        ) : (
         <View style={styles.card}>
           <View style={styles.fieldGroup}>
             <Text style={styles.label}>Email</Text>
@@ -222,8 +376,10 @@ export default function SignInScreen() {
             <Text style={styles.googleError}>{google.error}</Text>
           ) : null}
         </View>
+        )}
 
-        {/* Mode toggle */}
+        {/* Mode toggle (email accounts only — phone accounts auto-create) */}
+        {method === 'email' ? (
         <View style={styles.toggleRow}>
           <Text style={styles.toggleText}>
             {mode === 'signin' ? 'New to SoapNotesAi?' : 'Already have an account?'}
@@ -241,6 +397,7 @@ export default function SignInScreen() {
             </Text>
           </Pressable>
         </View>
+        ) : null}
 
         <Text style={styles.disclaimer}>
           Draft assistive tool · review and sign every note before clinical use.
@@ -248,6 +405,20 @@ export default function SignInScreen() {
       </ScrollView>
     </KeyboardAvoidingView>
   );
+}
+
+function humanizePhoneError(e: unknown): string {
+  const msg = e instanceof Error ? e.message : 'Something went wrong';
+  const map: Record<string, string> = {
+    invalid_indian_mobile: 'Enter a valid 10-digit Indian mobile number.',
+    otp_rate_limited: 'Too many codes requested for this number. Try again in an hour.',
+    otp_incorrect: 'That code is incorrect. Try again.',
+    otp_expired: 'That code expired. Tap "Change number / resend" for a new one.',
+    otp_locked: 'Too many wrong attempts. Request a new code.',
+    otp_not_requested: 'Request a code first.',
+    otp_delivery_not_configured: 'SMS delivery is not set up yet. Contact support.',
+  };
+  return map[msg] ?? msg;
 }
 
 function humanizeAuthError(e: unknown): string {
@@ -287,6 +458,7 @@ const makeStyles = (c: ThemeColors) => StyleSheet.create({
   // ─── Hero ───────────────────────────────────────────────
   hero: { gap: space.sm, marginBottom: space.lg },
   brandRow: { flexDirection: 'row', alignItems: 'center', gap: space.md },
+  brandLogo: { width: 96, height: 44 },
   brandMark: {
     width: 56,
     height: 56,
@@ -355,6 +527,42 @@ const makeStyles = (c: ThemeColors) => StyleSheet.create({
     color: c.textMuted,
     lineHeight: 22,
     marginTop: space.md,
+  },
+
+  methodRow: {
+    flexDirection: 'row',
+    gap: 6,
+    padding: 4,
+    backgroundColor: c.surfaceElevated,
+    borderRadius: radii.md,
+    borderWidth: 1,
+    borderColor: c.border,
+  },
+  methodBtn: {
+    flex: 1,
+    alignItems: 'center',
+    paddingVertical: 10,
+    borderRadius: radii.sm,
+  },
+  methodBtnActive: { backgroundColor: c.accent },
+  methodText: {
+    fontFamily: fonts.displayBold,
+    color: c.textMuted,
+    fontSize: font.size.xs,
+    letterSpacing: 0.8,
+  },
+  methodTextActive: { color: '#FFFFFF' },
+  phoneRow: { flexDirection: 'row', alignItems: 'center', gap: space.sm },
+  phonePrefix: {
+    fontFamily: fonts.displayBold,
+    color: c.text,
+    fontSize: font.size.base,
+  },
+  otpHint: {
+    fontFamily: fonts.display,
+    fontSize: font.size.sm,
+    color: c.textMuted,
+    lineHeight: 19,
   },
 
   // ─── Card ───────────────────────────────────────────────

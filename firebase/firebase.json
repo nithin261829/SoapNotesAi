@@ -4,6 +4,7 @@
     "indexes": "firestore.indexes.json"
   },
   "hosting": {
+    "site": "soapnotesai",
     "public": "hosting-dist",
     "ignore": ["firebase.json", "**/.*"],
     "cleanUrls": true,
