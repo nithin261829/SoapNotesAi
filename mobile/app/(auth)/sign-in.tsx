@@ -463,7 +463,7 @@ const makeStyles = (c: ThemeColors) => StyleSheet.create({
     // (iPhone bug: header disappeared). Center only on web's tall viewport.
     justifyContent: Platform.OS === 'web' ? 'center' : 'flex-start',
     paddingHorizontal: space.lg,
-    paddingTop: Platform.OS === 'web' ? space.xl : space.xxl + space.lg,
+    paddingTop: Platform.OS === 'web' ? space.xl : space.xxl * 2 + space.md,
     paddingBottom: space.xl,
     gap: space.md,
   },
