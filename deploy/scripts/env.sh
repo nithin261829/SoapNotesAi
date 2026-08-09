@@ -21,7 +21,7 @@ set -euo pipefail
 # Concurrency per instance (FastAPI handles many in-flight requests fine;
 # 80 is the Cloud Run default and a sensible starting point).
 : "${CONCURRENCY:=80}"
-: "${MIN_INSTANCES:=0}"   # scale to zero when idle (free)
+: "${MIN_INSTANCES:=1}"   # keep 1 warm — no cold starts (costs ~Rs.500-800/mo)
 : "${MAX_INSTANCES:=10}"  # safety cap so a runaway can't bankrupt us
 : "${MEMORY:=1Gi}"
 : "${CPU:=1}"
