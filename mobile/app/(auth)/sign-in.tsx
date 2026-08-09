@@ -65,7 +65,7 @@ export default function SignInScreen() {
   };
 
   const onVerifyPhoneOtp = async () => {
-    if (submitting || otpCode.length < 4) return;
+    if (submitting || otpCode.length < 6) return;
     setError(null);
     setSubmitting(true);
     try {
@@ -192,13 +192,13 @@ export default function SignInScreen() {
 
             <Pressable
               accessibilityRole="button"
-              disabled={submitting || (otpSentTo ? otpCode.length < 4 : !phoneValid)}
+              disabled={submitting || (otpSentTo ? otpCode.length < 6 : !phoneValid)}
               onPress={() => void (otpSentTo ? onVerifyPhoneOtp() : onSendPhoneOtp())}
               style={({ pressed }) => [
                 styles.primaryBtn,
                 {
                   opacity:
-                    submitting || (otpSentTo ? otpCode.length < 4 : !phoneValid)
+                    submitting || (otpSentTo ? otpCode.length < 6 : !phoneValid)
                       ? 0.45
                       : pressed
                         ? 0.85
