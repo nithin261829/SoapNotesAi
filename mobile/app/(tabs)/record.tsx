@@ -432,7 +432,7 @@ export default function RecordScreen() {
               <Feather name="chevron-left" size={22} color={c.text} />
               <Text style={styles.inlineBackText}>Back</Text>
             </Pressable>
-          ) : <View />}
+          ) : null}
           {isRec || isPaused ? (
             <View style={[styles.recPill, isPaused && { backgroundColor: c.recordingDim }]}>
               <View style={[styles.recPillDot, isPaused && { opacity: 0.5 }]} />
@@ -886,11 +886,14 @@ const makeStyles = (c: ThemeColors) => StyleSheet.create({
   topRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
+    justifyContent: 'center',
+    minHeight: 34,
     marginBottom: 4,
   },
   cornerLogo: { position: 'absolute', right: space.base, zIndex: 10 },
   inlineBackBtn: {
+    position: 'absolute',
+    left: 0,
     flexDirection: 'row',
     alignItems: 'center',
     gap: 2,
