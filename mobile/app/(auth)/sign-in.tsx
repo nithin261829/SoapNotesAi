@@ -1,3 +1,5 @@
+// Sign-in — light "sky" design (reference: Morva Labs / dribbble 24494696).
+// Fixed light palette by design: this screen keeps one look in both themes.
 import {
   createUserWithEmailAndPassword,
   type AuthError,
@@ -5,8 +7,7 @@ import {
   signInWithCustomToken,
   signInWithEmailAndPassword,
 } from 'firebase/auth';
-
-import { requestPhoneLoginOtp, verifyPhoneLoginOtp } from '@/api/otp';
+import { LinearGradient } from 'expo-linear-gradient';
 import { Feather } from '@expo/vector-icons';
 import { useState } from 'react';
 import {
@@ -22,28 +23,43 @@ import {
   View,
 } from 'react-native';
 
+import { requestPhoneLoginOtp, verifyPhoneLoginOtp } from '@/api/otp';
 import { firebaseAuth } from '@/auth/firebase';
 import { useGoogleSignIn } from '@/auth/useGoogleSignIn';
-import { useStyles, useThemeColors } from '@/theme/ThemeContext';
-import { fonts } from '@/theme/fonts';
-import { font, radii, space, type ThemeColors } from '@/theme/tokens';
 
 type Mode = 'signin' | 'signup';
 type Field = 'email' | 'password' | 'phone' | 'otp';
 
+// ─── Fixed light palette (deliberate single look) ──────────────────
+const P = {
+  skyTop: '#c9dff5',
+  skyMid: '#e6f0fa',
+  skyBottom: '#f7fafd',
+  card: '#FFFFFF',
+  ink: '#0f172a',
+  inkSoft: '#3b4a63',
+  gray: '#6b7a90',
+  grayLight: '#93a1b5',
+  line: '#e4eaf2',
+  fill: '#f6f8fb',
+  focus: '#0f172a',
+  danger: '#c2413b',
+  dangerSoft: '#fdf0ef',
+  okSoft: '#ecf7f0',
+};
+
 const TRUST_MARKERS = [
   { icon: 'mic', label: 'Voice → SOAP in seconds' },
   { icon: 'lock', label: 'Encrypted patient data' },
-  { icon: 'check-circle', label: 'Verified-doctor letterheads' },
+  { icon: 'check-circle', label: 'Verified letterheads' },
 ] as const;
 
 export default function SignInScreen() {
-  const c = useThemeColors();
-  const styles = useStyles(makeStyles);
   const google = useGoogleSignIn();
   const [mode, setMode] = useState<Mode>('signin');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [resetSent, setResetSent] = useState(false);
@@ -53,15 +69,9 @@ export default function SignInScreen() {
   const [otpCode, setOtpCode] = useState('');
   const [otpSentTo, setOtpSentTo] = useState<string | null>(null);
   const [otpChannel, setOtpChannel] = useState<string | null>(null);
-  // Visual only — drives the focused-border treatment on inputs.
   const [focused, setFocused] = useState<Field | null>(null);
 
   const phoneValid = /^[6-9]\d{9}$/.test(phone.replace(/\D/g, '').replace(/^(91|0)/, ''));
-
-  const inputStyle = (field: Field) => [
-    styles.input,
-    focused === field && styles.inputFocused,
-  ];
 
   const onSendPhoneOtp = async () => {
     if (submitting || !phoneValid) return;
@@ -127,19 +137,34 @@ export default function SignInScreen() {
 
   const phonePrimaryDisabled = submitting || (otpSentTo ? otpCode.length < 6 : !phoneValid);
 
+  const cardTitle =
+    method === 'phone'
+      ? 'Sign in with mobile OTP'
+      : mode === 'signin'
+        ? 'Sign in with email'
+        : 'Create your account';
+
+  const inputWrap = (field: Field) => [
+    styles.inputWrap,
+    focused === field && styles.inputWrapFocused,
+  ];
+
   return (
-    <KeyboardAvoidingView
-      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-      style={styles.kav}
-    >
-      <ScrollView
-        style={styles.scroll}
-        contentContainerStyle={styles.container}
-        keyboardShouldPersistTaps="handled"
-        showsVerticalScrollIndicator={false}
+    <View style={styles.root}>
+      <LinearGradient
+        colors={[P.skyTop, P.skyMid, P.skyBottom]}
+        style={StyleSheet.absoluteFill}
+      />
+      <KeyboardAvoidingView
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        style={{ flex: 1 }}
       >
-        {/* Hero — brand-forward, editorial */}
-        <View style={styles.hero}>
+        <ScrollView
+          contentContainerStyle={styles.container}
+          keyboardShouldPersistTaps="handled"
+          showsVerticalScrollIndicator={false}
+        >
+          {/* Brand lockup */}
           <View style={styles.brandRow}>
             <Image
               source={require('../../assets/logo.png')}
@@ -150,299 +175,287 @@ export default function SignInScreen() {
             <View style={styles.brandDivider} />
             <View>
               <Text style={styles.brandTitle}>SoapNotesAi</Text>
-              <Text style={styles.brandEyebrow}>Voice to SOAP notes</Text>
+              <Text style={styles.brandEyebrow}>POWERED BY SOAPNOTESAI</Text>
             </View>
           </View>
 
-          <View style={{ marginTop: space.xl }}>
-            <Text style={styles.heroAccent}>{mode === 'signin' ? 'sign in' : 'create account'}</Text>
-          </View>
-
-          <Text style={styles.subtitle}>
-            {mode === 'signin'
-              ? 'Pick up where you left off. Your patients and recordings are right where you left them.'
-              : 'Dictate a session, the AI drafts the SOAP, you review and sign. Built for the rhythm of a busy clinic.'}
-          </Text>
-
-          {/* Trust markers */}
-          <View style={styles.trustRow}>
-            {TRUST_MARKERS.map((t) => (
-              <View key={t.icon} style={styles.trustItem}>
-                <Feather name={t.icon} size={13} color={c.accent} />
-                <Text style={styles.trustText}>{t.label}</Text>
-              </View>
-            ))}
-          </View>
-        </View>
-
-        {/* Method toggle: Email | Mobile OTP */}
-        <View style={styles.methodRow}>
-          {(
-            [
-              { key: 'email', label: 'EMAIL' },
-              { key: 'phone', label: 'MOBILE OTP' },
-            ] as const
-          ).map((m) => (
-            <Pressable
-              key={m.key}
-              onPress={() => {
-                setMethod(m.key);
-                setError(null);
-              }}
-              style={[styles.methodBtn, method === m.key && styles.methodBtnActive]}
-            >
-              <Text
-                style={[styles.methodText, method === m.key && styles.methodTextActive]}
-              >
-                {m.label}
-              </Text>
-            </Pressable>
-          ))}
-        </View>
-
-        {method === 'phone' ? (
-          <View style={styles.cardShadow}>
+          {/* Floating card */}
           <View style={styles.card}>
-            <View pointerEvents="none" style={styles.cardGlow} />
-            <View pointerEvents="none" style={styles.cardSheen} />
-            <View style={styles.fieldGroup}>
-              <Text style={styles.label}>Mobile number (India)</Text>
-              <View style={styles.phoneRow}>
-                <View style={styles.phonePrefixBox}>
-                  <Text style={styles.phonePrefix}>+91</Text>
-                </View>
-                <TextInput
-                  value={phone}
-                  onChangeText={(t) => setPhone(t.replace(/\D/g, '').slice(0, 10))}
-                  keyboardType="number-pad"
-                  placeholder="98765 43210"
-                  placeholderTextColor={c.textSubtle}
-                  style={[...inputStyle('phone'), { flex: 1 }]}
-                  editable={!submitting && !otpSentTo}
-                  maxLength={10}
-                  onFocus={() => setFocused('phone')}
-                  onBlur={() => setFocused(null)}
-                />
-              </View>
+            <View style={styles.cardIcon}>
+              <Feather name="log-in" size={16} color={P.ink} />
+            </View>
+            <Text style={styles.cardTitle}>{cardTitle}</Text>
+            <Text style={styles.cardSubtitle}>
+              Dictate the visit — the AI drafts the SOAP note, you review and sign.
+            </Text>
+
+            {/* Method toggle */}
+            <View style={styles.methodRow}>
+              {(
+                [
+                  { key: 'email', label: 'Email' },
+                  { key: 'phone', label: 'Mobile OTP' },
+                ] as const
+              ).map((m) => (
+                <Pressable
+                  key={m.key}
+                  onPress={() => {
+                    setMethod(m.key);
+                    setError(null);
+                  }}
+                  style={[styles.methodBtn, method === m.key && styles.methodBtnActive]}
+                >
+                  <Text
+                    style={[styles.methodText, method === m.key && styles.methodTextActive]}
+                  >
+                    {m.label}
+                  </Text>
+                </Pressable>
+              ))}
             </View>
 
-            {otpSentTo ? (
+            {method === 'phone' ? (
               <>
-                <View style={styles.fieldGroup}>
-                  <Text style={styles.label}>6-digit code</Text>
+                <View style={inputWrap('phone')}>
+                  <Feather name="phone" size={15} color={P.grayLight} />
+                  <Text style={styles.phonePrefix}>+91</Text>
                   <TextInput
-                    value={otpCode}
-                    onChangeText={(t) => setOtpCode(t.replace(/\D/g, '').slice(0, 6))}
+                    value={phone}
+                    onChangeText={(t) => setPhone(t.replace(/\D/g, '').slice(0, 10))}
                     keyboardType="number-pad"
-                    placeholder="••••••"
-                    placeholderTextColor={c.textSubtle}
-                    style={inputStyle('otp')}
-                    editable={!submitting}
-                    maxLength={6}
-                    autoFocus
-                    onFocus={() => setFocused('otp')}
+                    placeholder="Mobile number"
+                    placeholderTextColor={P.grayLight}
+                    style={styles.input}
+                    editable={!submitting && !otpSentTo}
+                    maxLength={10}
+                    onFocus={() => setFocused('phone')}
                     onBlur={() => setFocused(null)}
                   />
                 </View>
-                <Text style={styles.otpHint}>
-                  {otpChannel === 'dev_log'
-                    ? 'Dev mode: SMS not configured yet — the code is on the backend console.'
-                    : `Code sent to ${otpSentTo}.`}
-                </Text>
+
+                {otpSentTo ? (
+                  <>
+                    <View style={inputWrap('otp')}>
+                      <Feather name="key" size={15} color={P.grayLight} />
+                      <TextInput
+                        value={otpCode}
+                        onChangeText={(t) => setOtpCode(t.replace(/\D/g, '').slice(0, 6))}
+                        keyboardType="number-pad"
+                        placeholder="6-digit code"
+                        placeholderTextColor={P.grayLight}
+                        style={styles.input}
+                        editable={!submitting}
+                        maxLength={6}
+                        autoFocus
+                        onFocus={() => setFocused('otp')}
+                        onBlur={() => setFocused(null)}
+                      />
+                    </View>
+                    <Text style={styles.otpHint}>
+                      {otpChannel === 'dev_log'
+                        ? 'Dev mode: SMS not configured yet — the code is on the backend console.'
+                        : `Code sent to ${otpSentTo}.`}
+                    </Text>
+                  </>
+                ) : null}
+
+                {error ? (
+                  <View style={styles.errorBox}>
+                    <Text style={styles.errorText}>{error}</Text>
+                  </View>
+                ) : null}
+
+                <Pressable
+                  accessibilityRole="button"
+                  disabled={phonePrimaryDisabled}
+                  onPress={() => void (otpSentTo ? onVerifyPhoneOtp() : onSendPhoneOtp())}
+                  style={({ pressed }) => [
+                    styles.primaryBtn,
+                    { opacity: phonePrimaryDisabled ? 0.4 : pressed ? 0.88 : 1 },
+                  ]}
+                >
+                  {submitting ? (
+                    <ActivityIndicator color="#FFFFFF" />
+                  ) : (
+                    <Text style={styles.primaryBtnLabel}>
+                      {otpSentTo ? 'Verify & Sign In' : 'Get OTP'}
+                    </Text>
+                  )}
+                </Pressable>
+
+                {otpSentTo ? (
+                  <Pressable
+                    onPress={() => {
+                      setOtpSentTo(null);
+                      setOtpCode('');
+                      setError(null);
+                    }}
+                    hitSlop={8}
+                    style={{ alignSelf: 'center' }}
+                  >
+                    <Text style={styles.linkText}>Change number / resend</Text>
+                  </Pressable>
+                ) : null}
               </>
-            ) : null}
+            ) : (
+              <>
+                <View style={inputWrap('email')}>
+                  <Feather name="mail" size={15} color={P.grayLight} />
+                  <TextInput
+                    value={email}
+                    onChangeText={setEmail}
+                    autoCapitalize="none"
+                    autoCorrect={false}
+                    autoComplete="email"
+                    keyboardType="email-address"
+                    textContentType="emailAddress"
+                    placeholder="Email"
+                    placeholderTextColor={P.grayLight}
+                    style={styles.input}
+                    editable={!submitting}
+                    onFocus={() => setFocused('email')}
+                    onBlur={() => setFocused(null)}
+                  />
+                </View>
 
-            {error ? (
-              <View style={styles.errorBox}>
-                <Text style={styles.errorText}>{error}</Text>
-              </View>
-            ) : null}
+                <View style={inputWrap('password')}>
+                  <Feather name="lock" size={15} color={P.grayLight} />
+                  <TextInput
+                    value={password}
+                    onChangeText={setPassword}
+                    secureTextEntry={!showPassword}
+                    autoCapitalize="none"
+                    autoCorrect={false}
+                    autoComplete={mode === 'signin' ? 'current-password' : 'new-password'}
+                    textContentType={mode === 'signin' ? 'password' : 'newPassword'}
+                    placeholder="Password"
+                    placeholderTextColor={P.grayLight}
+                    style={styles.input}
+                    editable={!submitting}
+                    onSubmitEditing={() => void onSubmit()}
+                    onFocus={() => setFocused('password')}
+                    onBlur={() => setFocused(null)}
+                  />
+                  <Pressable onPress={() => setShowPassword((s) => !s)} hitSlop={8}>
+                    <Feather
+                      name={showPassword ? 'eye-off' : 'eye'}
+                      size={15}
+                      color={P.grayLight}
+                    />
+                  </Pressable>
+                </View>
 
-            <Pressable
-              accessibilityRole="button"
-              disabled={phonePrimaryDisabled}
-              onPress={() => void (otpSentTo ? onVerifyPhoneOtp() : onSendPhoneOtp())}
-              style={({ pressed }) => [
-                styles.primaryBtn,
-                pressed && !phonePrimaryDisabled && styles.primaryBtnPressed,
-                { opacity: phonePrimaryDisabled ? 0.45 : 1 },
-              ]}
-            >
-              {submitting ? (
-                <ActivityIndicator color={c.textOnAccent} />
-              ) : (
-                <Text style={styles.primaryBtnLabel}>
-                  {otpSentTo ? 'VERIFY & SIGN IN  →' : 'GET OTP  →'}
-                </Text>
-              )}
-            </Pressable>
+                {mode === 'signin' ? (
+                  <Pressable
+                    accessibilityRole="link"
+                    onPress={() => void onForgotPassword()}
+                    hitSlop={8}
+                    style={{ alignSelf: 'flex-end' }}
+                  >
+                    <Text style={styles.forgotLink}>Forgot password?</Text>
+                  </Pressable>
+                ) : null}
 
-            {otpSentTo ? (
+                {resetSent ? (
+                  <View style={styles.resetBox}>
+                    <Text style={styles.resetText}>
+                      Password-reset email sent to {email.trim()}. Check your inbox (and
+                      spam), set a new password, then sign in here.
+                    </Text>
+                  </View>
+                ) : null}
+
+                {error ? (
+                  <View style={styles.errorBox}>
+                    <Text style={styles.errorText}>{error}</Text>
+                  </View>
+                ) : null}
+
+                <Pressable
+                  accessibilityRole="button"
+                  accessibilityLabel={mode === 'signin' ? 'Sign in' : 'Create account'}
+                  disabled={submitDisabled}
+                  onPress={() => void onSubmit()}
+                  style={({ pressed }) => [
+                    styles.primaryBtn,
+                    { opacity: submitDisabled ? 0.4 : pressed ? 0.88 : 1 },
+                  ]}
+                >
+                  {submitting ? (
+                    <ActivityIndicator color="#FFFFFF" />
+                  ) : (
+                    <Text style={styles.primaryBtnLabel}>
+                      {mode === 'signin' ? 'Get Started' : 'Create Account'}
+                    </Text>
+                  )}
+                </Pressable>
+
+                <View style={styles.dividerRow}>
+                  <View style={styles.dividerLine} />
+                  <Text style={styles.dividerText}>Or sign in with</Text>
+                  <View style={styles.dividerLine} />
+                </View>
+
+                <Pressable
+                  accessibilityRole="button"
+                  accessibilityLabel="Continue with Google"
+                  disabled={google.inProgress || submitting}
+                  onPress={() => void google.signIn()}
+                  style={({ pressed }) => [
+                    styles.googleBtn,
+                    { opacity: google.inProgress || submitting ? 0.5 : pressed ? 0.85 : 1 },
+                  ]}
+                >
+                  {google.inProgress ? (
+                    <ActivityIndicator color={P.ink} />
+                  ) : (
+                    <Text style={styles.googleG}>G</Text>
+                  )}
+                </Pressable>
+                {google.error ? <Text style={styles.googleError}>{google.error}</Text> : null}
+              </>
+            )}
+          </View>
+
+          {/* Below-card: mode toggle + trust markers + footer */}
+          {method === 'email' ? (
+            <View style={styles.toggleRow}>
+              <Text style={styles.toggleText}>
+                {mode === 'signin' ? 'New to SoapNotesAi?' : 'Already have an account?'}
+              </Text>
               <Pressable
+                accessibilityRole="link"
                 onPress={() => {
-                  setOtpSentTo(null);
-                  setOtpCode('');
+                  setMode((m) => (m === 'signin' ? 'signup' : 'signin'));
                   setError(null);
                 }}
                 hitSlop={8}
               >
-                <Text style={styles.toggleLink}>Change number / resend</Text>
+                <Text style={styles.toggleLink}>
+                  {mode === 'signin' ? 'Create one' : 'Sign in'}
+                </Text>
               </Pressable>
-            ) : null}
-          </View>
-          </View>
-        ) : (
-        <View style={styles.cardShadow}>
-        <View style={styles.card}>
-          <View pointerEvents="none" style={styles.cardGlow} />
-          <View pointerEvents="none" style={styles.cardSheen} />
-          <View style={styles.fieldGroup}>
-            <Text style={styles.label}>Email</Text>
-            <TextInput
-              value={email}
-              onChangeText={setEmail}
-              autoCapitalize="none"
-              autoCorrect={false}
-              autoComplete="email"
-              keyboardType="email-address"
-              textContentType="emailAddress"
-              placeholder="doctor@clinic.com"
-              placeholderTextColor={c.textSubtle}
-              style={inputStyle('email')}
-              editable={!submitting}
-              onFocus={() => setFocused('email')}
-              onBlur={() => setFocused(null)}
-            />
-          </View>
-
-          <View style={styles.fieldGroup}>
-            <Text style={styles.label}>Password</Text>
-            <TextInput
-              value={password}
-              onChangeText={setPassword}
-              secureTextEntry
-              autoCapitalize="none"
-              autoCorrect={false}
-              autoComplete={mode === 'signin' ? 'current-password' : 'new-password'}
-              textContentType={mode === 'signin' ? 'password' : 'newPassword'}
-              placeholder="At least 6 characters"
-              placeholderTextColor={c.textSubtle}
-              style={inputStyle('password')}
-              editable={!submitting}
-              onSubmitEditing={() => void onSubmit()}
-              onFocus={() => setFocused('password')}
-              onBlur={() => setFocused(null)}
-            />
-          </View>
-
-          {mode === 'signin' ? (
-            <Pressable
-              accessibilityRole="link"
-              onPress={() => void onForgotPassword()}
-              hitSlop={8}
-              style={{ alignSelf: 'flex-end' }}
-            >
-              <Text style={styles.forgotLink}>Forgot password?</Text>
-            </Pressable>
-          ) : null}
-
-          {resetSent ? (
-            <View style={styles.resetBox}>
-              <Text style={styles.resetText}>
-                Password-reset email sent to {email.trim()}. Check your inbox (and spam folder),
-                set a new password, then sign in here.
-              </Text>
             </View>
           ) : null}
 
-          {error ? (
-            <View style={styles.errorBox}>
-              <Text style={styles.errorText}>{error}</Text>
-            </View>
-          ) : null}
-
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel={mode === 'signin' ? 'Sign in' : 'Create account'}
-            disabled={submitDisabled}
-            onPress={() => void onSubmit()}
-            style={({ pressed }) => [
-              styles.primaryBtn,
-              pressed && !submitDisabled && styles.primaryBtnPressed,
-              { opacity: submitDisabled ? 0.45 : 1 },
-            ]}
-          >
-            {submitting ? (
-              <ActivityIndicator color={c.textOnAccent} />
-            ) : (
-              <Text style={styles.primaryBtnLabel}>
-                {mode === 'signin' ? 'SIGN IN  →' : 'CREATE ACCOUNT  →'}
-              </Text>
-            )}
-          </Pressable>
-
-          <View style={styles.dividerRow}>
-            <View style={styles.dividerLine} />
-            <Text style={styles.dividerText}>OR</Text>
-            <View style={styles.dividerLine} />
+          <View style={styles.trustRow}>
+            {TRUST_MARKERS.map((t) => (
+              <View key={t.icon} style={styles.trustItem}>
+                <Feather name={t.icon} size={12} color={P.inkSoft} />
+                <Text style={styles.trustText}>{t.label}</Text>
+              </View>
+            ))}
           </View>
 
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel="Continue with Google"
-            disabled={google.inProgress || submitting}
-            onPress={() => void google.signIn()}
-            style={({ pressed }) => [
-              styles.googleBtn,
-              pressed && !(google.inProgress || submitting) && styles.primaryBtnPressed,
-              { opacity: google.inProgress || submitting ? 0.55 : 1 },
-            ]}
-          >
-            {google.inProgress ? (
-              <ActivityIndicator color={c.text} />
-            ) : (
-              <>
-                <Text style={styles.googleG}>G</Text>
-                <Text style={styles.googleBtnLabel}>Continue with Google</Text>
-              </>
-            )}
-          </Pressable>
-          {google.error ? (
-            <Text style={styles.googleError}>{google.error}</Text>
-          ) : null}
-        </View>
-        </View>
-        )}
-
-        {/* Mode toggle (email accounts only — phone accounts auto-create) */}
-        {method === 'email' ? (
-        <View style={styles.toggleRow}>
-          <Text style={styles.toggleText}>
-            {mode === 'signin' ? 'New to SoapNotesAi?' : 'Already have an account?'}
-          </Text>
-          <Pressable
-            accessibilityRole="link"
-            onPress={() => {
-              setMode((m) => (m === 'signin' ? 'signup' : 'signin'));
-              setError(null);
-            }}
-            hitSlop={8}
-          >
-            <Text style={styles.toggleLink}>
-              {mode === 'signin' ? 'Create one' : 'Sign in'}
+          <View style={styles.footer}>
+            <Text style={styles.footerDisclaimer}>
+              Draft assistive tool · review and sign every note before clinical use.
             </Text>
-          </Pressable>
-        </View>
-        ) : null}
-
-        <View style={styles.footer}>
-          <Text style={styles.disclaimer}>
-            Draft assistive tool · review and sign every note before clinical use.
-          </Text>
-          <Text style={styles.footerMeta}>© SoapNotesAi · soapnotesai.web.app</Text>
-        </View>
-      </ScrollView>
-    </KeyboardAvoidingView>
+            <Text style={styles.footerBrand}>© SoapNotesAi · soapnotesai.web.app</Text>
+          </View>
+        </ScrollView>
+      </KeyboardAvoidingView>
+    </View>
   );
 }
 
@@ -483,347 +496,193 @@ function humanizeAuthError(e: unknown): string {
   }
 }
 
-const CONTROL_HEIGHT = 52;
-
-const makeStyles = (c: ThemeColors) => StyleSheet.create({
-  kav: { flex: 1, backgroundColor: c.bg },
-  scroll: { backgroundColor: c.bg },
+const styles = StyleSheet.create({
+  root: { flex: 1, backgroundColor: P.skyBottom },
   container: {
     flexGrow: 1,
-    paddingHorizontal: space.lg,
-    paddingTop: space.xxl + space.lg,
-    paddingBottom: space.xxl,
-    gap: space.lg,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 20,
+    paddingVertical: 40,
+    gap: 18,
   },
 
-  // ─── Hero ───────────────────────────────────────────────
-  hero: { gap: space.sm, marginBottom: space.md },
-  brandRow: { flexDirection: 'row', alignItems: 'center', gap: space.md },
-  brandLogo: { width: 96, height: 40 },
-  brandDivider: {
-    width: StyleSheet.hairlineWidth * 2,
-    height: 32,
-    backgroundColor: c.borderStrong,
-  },
+  brandRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  brandLogo: { width: 86, height: 38 },
+  brandDivider: { width: 1, height: 30, backgroundColor: 'rgba(15,23,42,0.15)' },
   brandTitle: {
-    fontFamily: fonts.displayBold,
-    fontSize: font.size.xl,
-    color: c.text,
-    letterSpacing: -0.6,
+    fontSize: 17,
+    fontWeight: '800',
+    color: P.ink,
+    letterSpacing: -0.4,
   },
   brandEyebrow: {
-    fontFamily: fonts.displayMedium,
-    fontSize: font.size.xs,
-    color: c.textMuted,
-    letterSpacing: 0.8,
-    textTransform: 'uppercase',
+    fontSize: 9,
+    fontWeight: '700',
+    color: P.gray,
+    letterSpacing: 1.1,
+    marginTop: 1,
+  },
+
+  card: {
+    width: '100%',
+    maxWidth: 400,
+    backgroundColor: P.card,
+    borderRadius: 22,
+    borderWidth: 1,
+    borderColor: 'rgba(15,23,42,0.06)',
+    paddingHorizontal: 22,
+    paddingVertical: 24,
+    alignItems: 'stretch',
+    gap: 12,
+    shadowColor: '#31537a',
+    shadowOffset: { width: 0, height: 18 },
+    shadowOpacity: 0.16,
+    shadowRadius: 34,
+    elevation: 8,
+  },
+  cardIcon: {
+    alignSelf: 'center',
+    width: 40,
+    height: 40,
+    borderRadius: 12,
+    backgroundColor: P.card,
+    borderWidth: 1,
+    borderColor: P.line,
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#31537a',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 2,
+  },
+  cardTitle: {
+    fontSize: 17,
+    fontWeight: '800',
+    color: P.ink,
+    textAlign: 'center',
+    letterSpacing: -0.3,
     marginTop: 2,
   },
-  heroLine1: {
-    fontFamily: fonts.displayExtra,
-    fontSize: 56,
-    lineHeight: 60,
-    color: c.text,
-    letterSpacing: -2,
-  },
-  heroLine2: {
-    fontFamily: fonts.displayExtra,
-    fontSize: 56,
-    lineHeight: 60,
-    color: c.text,
-    letterSpacing: -2,
-    marginTop: -8,
-  },
-  heroAccent: {
-    fontFamily: fonts.serifBoldItalic,
-    fontSize: 36,
-    lineHeight: 42,
-    color: c.accent,
-    marginTop: -4,
-    letterSpacing: -0.5,
-  },
-  subtitle: {
-    fontFamily: fonts.display,
-    fontSize: font.size.md,
-    color: c.textMuted,
-    lineHeight: 22,
-    marginTop: space.md,
-    maxWidth: 520,
+  cardSubtitle: {
+    fontSize: 12.5,
+    color: P.gray,
+    textAlign: 'center',
+    lineHeight: 18,
+    marginTop: -6,
+    marginBottom: 2,
   },
 
-  // Trust markers — quiet credibility row; wraps to two lines on phones,
-  // sits on one line inside the 680px web column.
-  trustRow: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    alignItems: 'center',
-    columnGap: space.lg,
-    rowGap: space.sm,
-    marginTop: space.base,
-  },
-  trustItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-  },
-  trustText: {
-    fontFamily: fonts.displayMedium,
-    fontSize: font.size.sm,
-    color: c.textMuted,
-    letterSpacing: 0.2,
-  },
-
-  // ─── Method toggle ──────────────────────────────────────
   methodRow: {
     flexDirection: 'row',
-    gap: 4,
-    padding: 4,
-    backgroundColor: c.surface,
-    borderRadius: radii.lg,
+    backgroundColor: P.fill,
+    borderRadius: 11,
+    padding: 3,
     borderWidth: 1,
-    borderColor: c.border,
+    borderColor: P.line,
   },
   methodBtn: {
     flex: 1,
     alignItems: 'center',
-    justifyContent: 'center',
-    height: 40,
-    borderRadius: radii.md,
+    paddingVertical: 8,
+    borderRadius: 8,
   },
-  methodBtnActive: { backgroundColor: c.accent },
-  methodText: {
-    fontFamily: fonts.displayBold,
-    color: c.textMuted,
-    fontSize: font.size.xs,
-    letterSpacing: 1,
+  methodBtnActive: {
+    backgroundColor: P.card,
+    shadowColor: '#31537a',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.12,
+    shadowRadius: 4,
+    elevation: 2,
   },
-  methodTextActive: { color: c.textOnAccent },
+  methodText: { fontSize: 12.5, fontWeight: '600', color: P.gray },
+  methodTextActive: { color: P.ink, fontWeight: '700' },
 
-  phoneRow: { flexDirection: 'row', alignItems: 'center', gap: space.sm },
-  phonePrefixBox: {
-    height: CONTROL_HEIGHT,
-    paddingHorizontal: space.md,
-    borderRadius: radii.md,
-    borderWidth: 1,
-    borderColor: c.border,
-    backgroundColor: c.surfaceElevated,
+  inputWrap: {
+    flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
-  },
-  phonePrefix: {
-    fontFamily: fonts.displaySemi,
-    color: c.text,
-    fontSize: font.size.base,
-    letterSpacing: 0.5,
-  },
-  otpHint: {
-    fontFamily: fonts.display,
-    fontSize: font.size.sm,
-    color: c.textMuted,
-    lineHeight: 19,
-  },
-
-  // ─── Card — glass / elevated ────────────────────────────
-  cardShadow: {
-    borderRadius: radii.xl,
-    backgroundColor: c.surface,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 10 },
-    shadowOpacity: 0.18,
-    shadowRadius: 24,
-    elevation: 6,
-  },
-  card: {
-    overflow: 'hidden',
-    backgroundColor: c.surface,
-    borderRadius: radii.xl,
+    gap: 10,
+    backgroundColor: P.fill,
     borderWidth: 1,
-    borderColor: c.borderStrong,
-    padding: space.lg,
-    paddingTop: space.xl,
-    gap: space.base,
+    borderColor: P.line,
+    borderRadius: 11,
+    paddingHorizontal: 13,
+    height: 46,
   },
-  // Soft accent wash bleeding from the top edge — the "inner glow".
-  cardGlow: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    height: 110,
-    backgroundColor: c.accentSoft,
-    opacity: 0.55,
-  },
-  // 1px light catch on the top edge — reads as a glass highlight.
-  cardSheen: {
-    position: 'absolute',
-    top: 0,
-    left: space.base,
-    right: space.base,
-    height: 1,
-    backgroundColor: 'rgba(255, 255, 255, 0.14)',
-  },
-
-  fieldGroup: { gap: 6 },
-  label: {
-    fontFamily: fonts.displayBold,
-    fontSize: font.size.xs,
-    color: c.textMuted,
-    letterSpacing: 0.8,
-    textTransform: 'uppercase',
-  },
+  inputWrapFocused: { borderColor: P.focus, backgroundColor: P.card },
   input: {
-    height: CONTROL_HEIGHT,
-    backgroundColor: c.surfaceElevated,
-    borderWidth: 1,
-    borderColor: c.border,
-    borderRadius: radii.md,
-    paddingHorizontal: space.base,
-    color: c.text,
-    fontFamily: fonts.display,
-    fontSize: font.size.md,
+    flex: 1,
+    fontSize: 14,
+    color: P.ink,
+    paddingVertical: 0,
+    height: '100%',
   },
-  inputFocused: {
-    borderColor: c.borderAccent,
-    backgroundColor: c.surfaceHover,
-  },
+  phonePrefix: { fontSize: 14, fontWeight: '700', color: P.ink },
+
+  forgotLink: { fontSize: 12, fontWeight: '600', color: P.inkSoft, marginTop: -2 },
+  linkText: { fontSize: 12.5, fontWeight: '600', color: P.inkSoft, marginTop: 4 },
+  otpHint: { fontSize: 12, color: P.gray, lineHeight: 17 },
+
   errorBox: {
-    backgroundColor: c.dangerSoft,
+    backgroundColor: P.dangerSoft,
     borderWidth: 1,
-    borderColor: c.danger,
-    borderRadius: radii.md,
-    padding: space.md,
+    borderColor: '#f2cfcd',
+    borderRadius: 10,
+    padding: 10,
   },
-  errorText: {
-    fontFamily: fonts.display,
-    color: c.danger,
-    fontSize: font.size.sm,
-    lineHeight: 19,
-  },
-  forgotLink: {
-    fontFamily: fonts.displaySemi,
-    color: c.accent,
-    fontSize: font.size.sm,
-    marginTop: -4,
-  },
+  errorText: { fontSize: 12.5, color: P.danger, lineHeight: 18 },
   resetBox: {
-    backgroundColor: c.accentSoft,
+    backgroundColor: P.okSoft,
     borderWidth: 1,
-    borderColor: c.accentDim,
-    borderRadius: radii.md,
-    padding: space.md,
+    borderColor: '#cfe8d8',
+    borderRadius: 10,
+    padding: 10,
   },
-  resetText: {
-    fontFamily: fonts.display,
-    color: c.text,
-    fontSize: font.size.sm,
-    lineHeight: 19,
-  },
+  resetText: { fontSize: 12.5, color: P.inkSoft, lineHeight: 18 },
 
-  // ─── Buttons ────────────────────────────────────────────
   primaryBtn: {
-    marginTop: space.xs,
-    height: CONTROL_HEIGHT + 2,
-    paddingHorizontal: space.lg,
-    borderRadius: radii.md,
-    backgroundColor: c.accent,
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.16)',
+    height: 46,
+    borderRadius: 12,
+    backgroundColor: P.ink,
     alignItems: 'center',
     justifyContent: 'center',
+    marginTop: 2,
   },
-  primaryBtnPressed: {
-    transform: [{ scale: 0.98 }],
-    backgroundColor: c.accentDim,
-  },
-  primaryBtnLabel: {
-    fontFamily: fonts.displayBold,
-    color: c.textOnAccent,
-    fontSize: font.size.base,
-    letterSpacing: 1.6,
-  },
+  primaryBtnLabel: { color: '#FFFFFF', fontSize: 14, fontWeight: '700', letterSpacing: 0.2 },
 
-  dividerRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: space.md,
-    marginTop: space.sm,
-  },
-  dividerLine: { flex: 1, height: StyleSheet.hairlineWidth, backgroundColor: c.borderStrong },
-  dividerText: {
-    fontFamily: fonts.displayBold,
-    fontSize: font.size.xs - 1,
-    color: c.textSubtle,
-    letterSpacing: 2,
-  },
+  dividerRow: { flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 2 },
+  dividerLine: { flex: 1, height: 1, backgroundColor: P.line },
+  dividerText: { fontSize: 11, color: P.grayLight, fontWeight: '600' },
+
   googleBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: space.sm,
-    height: CONTROL_HEIGHT,
-    paddingHorizontal: space.lg,
-    borderRadius: radii.md,
-    backgroundColor: c.surfaceElevated,
+    height: 44,
+    borderRadius: 11,
     borderWidth: 1,
-    borderColor: c.borderStrong,
-  },
-  googleG: {
-    fontFamily: fonts.displayBold,
-    fontSize: 18,
-    lineHeight: 20,
-    color: '#4285F4',
-  },
-  googleBtnLabel: {
-    fontFamily: fonts.displaySemi,
-    color: c.text,
-    fontSize: font.size.base,
-    letterSpacing: 0.3,
-  },
-  googleError: {
-    fontFamily: fonts.display,
-    color: c.danger,
-    fontSize: font.size.xs,
-    marginTop: 4,
-  },
-
-  toggleRow: {
-    flexDirection: 'row',
+    borderColor: P.line,
+    backgroundColor: P.card,
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 6,
-    marginTop: space.sm,
   },
-  toggleText: {
-    fontFamily: fonts.display,
-    color: c.textMuted,
-    fontSize: font.size.sm,
-  },
-  toggleLink: {
-    fontFamily: fonts.displayBold,
-    color: c.accent,
-    fontSize: font.size.sm,
-    letterSpacing: 0.5,
-  },
+  googleG: { fontSize: 17, fontWeight: '800', color: '#4285F4' },
+  googleError: { fontSize: 12, color: P.danger, textAlign: 'center' },
 
-  // ─── Footer ─────────────────────────────────────────────
-  footer: {
-    marginTop: 'auto',
-    paddingTop: space.lg,
-    gap: space.xs,
-    alignItems: 'center',
+  toggleRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  toggleText: { fontSize: 13, color: P.gray },
+  toggleLink: { fontSize: 13, fontWeight: '700', color: P.ink },
+
+  trustRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'center',
+    columnGap: 18,
+    rowGap: 6,
+    maxWidth: 460,
   },
-  disclaimer: {
-    fontFamily: fonts.serifItalic,
-    fontSize: font.size.xs + 1,
-    color: c.textDim,
-    textAlign: 'center',
-    lineHeight: 17,
-  },
-  footerMeta: {
-    fontFamily: fonts.displayMedium,
-    fontSize: font.size.xs,
-    color: c.textDim,
-    letterSpacing: 0.6,
-    textAlign: 'center',
-  },
+  trustItem: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  trustText: { fontSize: 11.5, fontWeight: '600', color: P.inkSoft },
+
+  footer: { alignItems: 'center', gap: 3, marginTop: 4 },
+  footerDisclaimer: { fontSize: 11, color: P.grayLight, fontStyle: 'italic' },
+  footerBrand: { fontSize: 10.5, color: P.grayLight, fontWeight: '600' },
 });
