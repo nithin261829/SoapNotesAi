@@ -129,12 +129,16 @@ def me(user: CurrentUserDep) -> MeResponse:
     that as the signal to show the create-org / join-with-invite screen."""
     db = get_db()
     snap = db.collection("users").document(user.uid).get()
-    if not snap.exists:
+    data = snap.to_dict() if snap.exists else None
+    # Not provisioned = no doc, OR only the partial doc that phone-OTP / OTP
+    # verification writes (phone + otp session, but no org_id yet). Either way
+    # the app shows the setup screen. Never 500 on a partial doc.
+    if not data or not data.get("org_id"):
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="user_not_provisioned",
         )
-    profile = UserProfile.model_validate(snap.to_dict())
+    profile = UserProfile.model_validate(data)
 
     org_name: Optional[str] = None
     org_snap = db.collection("organizations").document(profile.org_id).get()
