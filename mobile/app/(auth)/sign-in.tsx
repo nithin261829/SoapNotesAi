@@ -365,7 +365,7 @@ export default function SignInScreen() {
               { opacity: submitting ? 0.55 : pressed ? 0.85 : 1 },
             ]}
           >
-            <Text style={styles.otpBtnIcon}>🇮🇳</Text>
+            <Feather name="smartphone" size={16} color={c.text} />
             <Text style={styles.googleBtnLabel}>Continue with Mobile OTP</Text>
           </Pressable>
         </View>

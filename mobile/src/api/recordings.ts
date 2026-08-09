@@ -2,6 +2,7 @@
 // device (canonical copy); this sends a transient copy and the backend runs
 // the audio → SOAP pipeline.
 
+import { Platform } from 'react-native';
 import * as FileSystem from 'expo-file-system/legacy';
 
 import type { SoapNote } from '@/types/soap';
@@ -197,6 +198,43 @@ export class UploadError extends Error {
 
 export async function uploadAudio(params: UploadParams): Promise<AudioUploadResponse> {
   const url = `${BASE_URL}/audio/upload`;
+
+  // Web: expo-file-system upload tasks are native-only. Fetch the recorded
+  // blob URL and post multipart FormData directly.
+  if (Platform.OS === 'web') {
+    const blob = await (await fetch(params.fileUri)).blob();
+    const fd = new FormData();
+    fd.append(
+      'audio',
+      new File([blob], 'audio.webm', { type: blob.type || 'audio/webm' }),
+    );
+    if (params.patientId) fd.append('patient_id', params.patientId);
+    if (params.durationMs != null)
+      fd.append('client_duration_ms', String(Math.round(params.durationMs)));
+    if (params.encounterDate) fd.append('encounter_date', params.encounterDate);
+    params.onProgress?.(0.5);
+    const res = await fetch(url, {
+      method: 'POST',
+      headers: {
+        'ngrok-skip-browser-warning': 'true',
+        ...(params.idToken ? { Authorization: `Bearer ${params.idToken}` } : {}),
+      },
+      body: fd,
+      signal: params.signal,
+    });
+    params.onProgress?.(1);
+    if (!res.ok) {
+      let code: string | null = null;
+      try {
+        code = ((await res.json()) as { detail?: string }).detail ?? null;
+      } catch {
+        /* not JSON */
+      }
+      throw new UploadError(`upload_failed_${res.status}`, res.status, code);
+    }
+    return (await res.json()) as AudioUploadResponse;
+  }
+
   const parameters: Record<string, string> = {};
   if (params.patientId) parameters.patient_id = params.patientId;
   if (params.durationMs != null) parameters.client_duration_ms = String(Math.round(params.durationMs));
