@@ -13,6 +13,8 @@ export interface Patient {
   age_recorded_at: string | null;
   sex: PatientSex | null;
   phone: string | null;
+  email: string | null;
+  address: string | null;
   created_by_uid: string;
   created_at: string;
   updated_at: string;
@@ -97,6 +99,8 @@ export interface CreatePatientParams {
   age_at_record?: number;
   sex?: PatientSex;
   phone?: string;
+  email?: string;
+  address?: string;
 }
 
 export async function createPatient(
@@ -123,6 +127,8 @@ export interface PatchPatientParams {
   age_at_record?: number;
   sex?: PatientSex;
   phone?: string;
+  email?: string;
+  address?: string;
 }
 
 export async function patchPatient(

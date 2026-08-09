@@ -26,6 +26,8 @@ class CreatePatientRequest(BaseModel):
     age_at_record: Optional[int] = Field(None, ge=0, le=130)
     sex: Optional[Sex] = None
     phone: Optional[str] = Field(None, max_length=20)
+    email: Optional[str] = Field(None, max_length=120)
+    address: Optional[str] = Field(None, max_length=300)
 
 
 class PatientResponse(BaseModel):
@@ -60,6 +62,8 @@ def create_patient(body: CreatePatientRequest, user: ClinicianDep) -> PatientRes
         age_recorded_at=now if body.age_at_record is not None else None,
         sex=body.sex,
         phone=body.phone,
+        email=body.email,
+        address=body.address,
         created_by_uid=user.uid,
         created_at=now,
         updated_at=now,
@@ -124,6 +128,8 @@ class PatchPatientRequest(BaseModel):
     age_at_record: Optional[int] = Field(None, ge=0, le=130)
     sex: Optional[Sex] = None
     phone: Optional[str] = Field(None, max_length=20)
+    email: Optional[str] = Field(None, max_length=120)
+    address: Optional[str] = Field(None, max_length=300)
 
 
 @router.patch("/{patient_id}", response_model=PatientResponse)
@@ -150,6 +156,10 @@ def patch_patient(
         patch["sex"] = body.sex
     if body.phone is not None:
         patch["phone"] = body.phone.strip()
+    if body.email is not None:
+        patch["email"] = body.email.strip()
+    if body.address is not None:
+        patch["address"] = body.address.strip()
     ref.update(patch)
 
     updated = Patient.model_validate(ref.get().to_dict())

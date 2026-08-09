@@ -26,6 +26,8 @@ class Patient(FirestoreModel):
     sex: Optional[Sex] = None
     # For one-tap call/message from follow-up reminders.
     phone: Optional[str] = None
+    email: Optional[str] = None
+    address: Optional[str] = None
     created_by_uid: str
     created_at: datetime = Field(default_factory=utc_now)
     updated_at: datetime = Field(default_factory=utc_now)

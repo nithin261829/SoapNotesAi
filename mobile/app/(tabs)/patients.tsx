@@ -256,6 +256,8 @@ function AddPatientModal({
   const [age, setAge] = useState('');
   const [sex, setSex] = useState<PatientSex | null>(null);
   const [phone, setPhone] = useState('');
+  const [patientEmail, setPatientEmail] = useState('');
+  const [address, setAddress] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -267,6 +269,8 @@ function AddPatientModal({
     setAge('');
     setSex(null);
     setPhone('');
+    setPatientEmail('');
+    setAddress('');
     setError(null);
     setSubmitting(false);
   };
@@ -282,6 +286,8 @@ function AddPatientModal({
         age_at_record: age ? Number.parseInt(age, 10) : undefined,
         sex: sex ?? undefined,
         phone: phone.trim() || undefined,
+        email: patientEmail.trim() || undefined,
+        address: address.trim() || undefined,
       });
       onCreated(entry);
       reset();
@@ -370,13 +376,39 @@ function AddPatientModal({
           </View>
 
           <View style={{ gap: 6 }}>
-            <Text style={styles.label}>Phone (for follow-up reminders)</Text>
+            <Text style={styles.label}>Phone</Text>
             <TextInput
               style={styles.input}
               value={phone}
               onChangeText={setPhone}
               placeholder="+91 …"
               keyboardType="phone-pad"
+              placeholderTextColor={c.textDim}
+            />
+          </View>
+
+          <View style={{ gap: 6 }}>
+            <Text style={styles.label}>Email (optional)</Text>
+            <TextInput
+              style={styles.input}
+              value={patientEmail}
+              onChangeText={setPatientEmail}
+              placeholder="patient@email.com"
+              keyboardType="email-address"
+              autoCapitalize="none"
+              autoCorrect={false}
+              placeholderTextColor={c.textDim}
+            />
+          </View>
+
+          <View style={{ gap: 6 }}>
+            <Text style={styles.label}>Address (optional)</Text>
+            <TextInput
+              style={[styles.input, { minHeight: 64, textAlignVertical: 'top' }]}
+              value={address}
+              onChangeText={setAddress}
+              placeholder="Street, city, PIN"
+              multiline
               placeholderTextColor={c.textDim}
             />
           </View>
