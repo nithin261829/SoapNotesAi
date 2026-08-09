@@ -133,6 +133,7 @@ export default function SignInScreen() {
               accessibilityLabel="SoapNotesAi"
             />
           </View>
+          <Text style={styles.partnerCaption}>Voice to SOAP notes</Text>
           <Text style={styles.headerTitle}>
             {mode === 'signin' ? 'Sign in to your account' : 'Create your account'}
           </Text>
@@ -489,6 +490,14 @@ const makeStyles = (c: ThemeColors) => StyleSheet.create({
   poweredDivider: { width: 1, height: 26, backgroundColor: c.borderStrong },
   poweredLogo: { width: 84, height: 34 },
   lockupRow: { flexDirection: 'row', alignItems: 'center', gap: space.md },
+  partnerCaption: {
+    fontFamily: fonts.displayMedium,
+    fontSize: font.size.xs,
+    color: c.textMuted,
+    letterSpacing: 0.6,
+    textTransform: 'uppercase',
+    marginTop: -2,
+  },
   brandRow: { flexDirection: 'row', alignItems: 'center', gap: space.md },
   brandLogo: { width: 96, height: 44 },
   brandMark: {
