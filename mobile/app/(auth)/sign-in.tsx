@@ -140,31 +140,6 @@ export default function SignInScreen() {
           <Text style={styles.headerSub}>Voice → SOAP notes for clinicians</Text>
         </View>
 
-        {/* Method toggle: Email | Mobile OTP */}
-        <View style={styles.methodRow}>
-          {(
-            [
-              { key: 'email', label: 'EMAIL' },
-              { key: 'phone', label: 'MOBILE OTP' },
-            ] as const
-          ).map((m) => (
-            <Pressable
-              key={m.key}
-              onPress={() => {
-                setMethod(m.key);
-                setError(null);
-              }}
-              style={[styles.methodBtn, method === m.key && styles.methodBtnActive]}
-            >
-              <Text
-                style={[styles.methodText, method === m.key && styles.methodTextActive]}
-              >
-                {m.label}
-              </Text>
-            </Pressable>
-          ))}
-        </View>
-
         {method === 'phone' ? (
           <View style={styles.card}>
             <View style={styles.fieldGroup}>
@@ -251,6 +226,19 @@ export default function SignInScreen() {
                 <Text style={styles.toggleLink}>Change number / resend</Text>
               </Pressable>
             ) : null}
+
+            <Pressable
+              onPress={() => {
+                setMethod('email');
+                setOtpSentTo(null);
+                setOtpCode('');
+                setError(null);
+              }}
+              hitSlop={8}
+              style={{ alignSelf: 'center' }}
+            >
+              <Text style={styles.toggleLink}>← Sign in with email instead</Text>
+            </Pressable>
           </View>
         ) : (
         <View style={styles.card}>
@@ -362,6 +350,23 @@ export default function SignInScreen() {
           {google.error ? (
             <Text style={styles.googleError}>{google.error}</Text>
           ) : null}
+
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Continue with Mobile OTP"
+            disabled={submitting}
+            onPress={() => {
+              setMethod('phone');
+              setError(null);
+            }}
+            style={({ pressed }) => [
+              styles.googleBtn,
+              { opacity: submitting ? 0.55 : pressed ? 0.85 : 1 },
+            ]}
+          >
+            <Text style={styles.otpBtnIcon}>🇮🇳</Text>
+            <Text style={styles.googleBtnLabel}>Continue with Mobile OTP</Text>
+          </Pressable>
         </View>
         )}
 
@@ -436,9 +441,11 @@ const makeStyles = (c: ThemeColors) => StyleSheet.create({
   scroll: { backgroundColor: c.bg },
   container: {
     flexGrow: 1,
-    justifyContent: 'center',
+    // Centering clips the top when content is taller than the screen
+    // (iPhone bug: header disappeared). Center only on web's tall viewport.
+    justifyContent: Platform.OS === 'web' ? 'center' : 'flex-start',
     paddingHorizontal: space.lg,
-    paddingTop: space.xl,
+    paddingTop: Platform.OS === 'web' ? space.xl : space.xxl + space.lg,
     paddingBottom: space.xl,
     gap: space.md,
   },
@@ -721,6 +728,7 @@ const makeStyles = (c: ThemeColors) => StyleSheet.create({
     borderColor: c.borderStrong,
     minHeight: 50,
   },
+  otpBtnIcon: { fontSize: 15 },
   googleG: {
     fontFamily: fonts.displayBold,
     fontSize: 18,
