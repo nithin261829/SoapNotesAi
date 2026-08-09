@@ -219,6 +219,8 @@ export default function RecordScreen() {
   const chooseExisting = () => {
     setChooseOpen(false);
     setPickerOpen(true);
+    // Refresh so patients added since this screen mounted show up.
+    void reloadPatients();
   };
 
   const chooseNew = () => {
