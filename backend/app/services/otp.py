@@ -294,8 +294,11 @@ def _deliver(code: str, *, email: Optional[str], phone: Optional[str]) -> tuple[
         _send_email(smtp_cfg, email, code)
         return email, "email"
 
-    if get_settings().app_env != "production":
-        # Development escape hatch: no delivery config yet — log the code.
+    # Dev escape hatch: log the code instead of sending. Active outside
+    # production, or in production ONLY via the explicit app_config/auth
+    # {otp_dev_log: true} switch (for pre-SMS-provider testing — turn it
+    # off before real users onboard).
+    if get_settings().app_env != "production" or get_config_doc("auth").get("otp_dev_log"):
         logger.warning("otp_dev_mode code=%s (configure app_config/smtp or /sms)", code)
         return email or phone or "dev", "dev_log"
 
