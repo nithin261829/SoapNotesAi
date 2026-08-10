@@ -27,7 +27,7 @@ import { StatusBadge } from '@/components/StatusBadge';
 import { TranscriptCard } from '@/components/TranscriptCard';
 import { useStyles, useThemeColors } from '@/theme/ThemeContext';
 import { fonts } from '@/theme/fonts';
-import { font, radii, space, type ThemeColors } from '@/theme/tokens';
+import { font, radii, radiusXl2, shadow, space, type ThemeColors } from '@/theme/tokens';
 import type { SoapNote } from '@/types/soap';
 
 export default function RecordingDetailScreen() {
@@ -203,10 +203,9 @@ export default function RecordingDetailScreen() {
 
         {entry ? (
           <>
+            {/* Encounter summary — the clinical header at a glance */}
             <View style={styles.headerCard}>
-              <View style={styles.tagPill}>
-                <Text style={styles.tagPillText}>Encounter</Text>
-              </View>
+              <Text style={styles.headerEyebrow}>Encounter</Text>
               <Text style={styles.headerDate}>
                 {new Date(entry.recording.created_at).toLocaleString()}
               </Text>
@@ -216,26 +215,35 @@ export default function RecordingDetailScreen() {
                   label={entry.recording.status}
                 />
                 {entry.recording.duration_seconds ? (
-                  <Text style={styles.headerMeta}>
-                    {Math.round(entry.recording.duration_seconds)}s
-                  </Text>
+                  <>
+                    <Text style={styles.metaDot}>·</Text>
+                    <Text style={styles.headerMeta}>
+                      {Math.round(entry.recording.duration_seconds)}s
+                    </Text>
+                  </>
                 ) : null}
               </View>
               {archived ? (
                 <Pressable
                   onPress={() => router.push('/payments' as never)}
-                  style={styles.archivedBanner}
+                  style={({ pressed }) => [styles.archivedBanner, pressed && styles.pressed]}
+                  accessibilityRole="button"
+                  accessibilityLabel="Archived recording — upgrade to extend backup"
                 >
-                  <Feather name="archive" size={13} color={c.textMuted} />
+                  <View style={styles.archivedIcon}>
+                    <Feather name="archive" size={14} color={c.warning} />
+                  </View>
                   <Text style={styles.archivedText}>
                     Archived — older than your {retentionMonths}-month backup window. Still
                     viewable & downloadable. Upgrade to extend guaranteed backup.
                   </Text>
+                  <Feather name="chevron-right" size={16} color={c.warning} />
                 </Pressable>
               ) : null}
             </View>
 
             {/* Audio playback */}
+            <Text style={styles.sectionEyebrow}>Playback</Text>
             <AudioPlayer
               url={audioUrl}
               fallbackDurationSec={entry.recording.duration_seconds}
@@ -244,8 +252,14 @@ export default function RecordingDetailScreen() {
 
             {/* Transcript — paired with the audio above for replay context */}
             {entry.recording.transcript ? (
-              <TranscriptCard text={entry.recording.transcript.text} />
+              <>
+                <Text style={styles.sectionEyebrow}>Transcript</Text>
+                <TranscriptCard text={entry.recording.transcript.text} />
+              </>
             ) : null}
+
+            {/* Clinical note — editor, save state, and export */}
+            <Text style={styles.sectionEyebrow}>Clinical note</Text>
 
             {/* Save bar */}
             {entry.recording.soap ? (
@@ -267,8 +281,10 @@ export default function RecordingDetailScreen() {
                   disabled={!dirty || saving}
                   style={({ pressed }) => [
                     styles.saveBtn,
-                    { opacity: !dirty || saving ? 0.45 : pressed ? 0.85 : 1 },
+                    !dirty || saving ? styles.disabled : pressed && styles.pressed,
                   ]}
+                  accessibilityRole="button"
+                  accessibilityLabel="Save clinical note"
                 >
                   {saving ? (
                     <ActivityIndicator color={c.textOnAccent} />
@@ -286,13 +302,18 @@ export default function RecordingDetailScreen() {
                 disabled={pdfBusy}
                 style={({ pressed }) => [
                   styles.pdfBtn,
-                  { opacity: pdfBusy ? 0.6 : pressed ? 0.85 : 1 },
+                  pdfBusy ? styles.disabled : pressed && styles.pressed,
                 ]}
+                accessibilityRole="button"
+                accessibilityLabel="Download or share PDF"
               >
                 {pdfBusy ? (
                   <ActivityIndicator color={c.textOnAccent} />
                 ) : (
-                  <Text style={styles.pdfBtnText}>DOWNLOAD / SHARE PDF →</Text>
+                  <>
+                    <Feather name="share" size={16} color={c.textOnAccent} />
+                    <Text style={styles.pdfBtnText}>DOWNLOAD / SHARE PDF</Text>
+                  </>
                 )}
               </Pressable>
               {pdfError ? <Text style={styles.errorTextSm}>{pdfError}</Text> : null}
@@ -317,47 +338,87 @@ export default function RecordingDetailScreen() {
 
 const makeStyles = (c: ThemeColors) => StyleSheet.create({
   container: { flex: 1, backgroundColor: c.bg },
-  scroll: { padding: space.lg, gap: space.md, paddingBottom: 60 },
-
-  archivedBanner: {
-    flexDirection: 'row', alignItems: 'center', gap: 8,
-    marginTop: 10, padding: 10, borderRadius: radii.md,
-    backgroundColor: c.surfaceElevated, borderWidth: 1, borderColor: c.border,
+  scroll: {
+    padding: space.lg,
+    gap: space.md,
+    paddingBottom: 60,
+    width: '100%',
+    maxWidth: 680,
+    alignSelf: 'center',
   },
-  archivedText: { flex: 1, fontFamily: fonts.display, fontSize: font.size.xs, color: c.textMuted, lineHeight: 15 },
+
+  // Shared interaction feedback — every Pressable presses the same way.
+  pressed: { opacity: 0.9, transform: [{ scale: 0.985 }] },
+  disabled: { opacity: 0.45 },
+
+  // ─── Section eyebrows ───────────────────────────────────────────
+  sectionEyebrow: {
+    fontFamily: fonts.displayBold,
+    color: c.textMuted,
+    fontSize: font.size.xs,
+    letterSpacing: 1,
+    textTransform: 'uppercase',
+    marginTop: space.xs,
+    marginLeft: 2,
+  },
+
+  // ─── Encounter summary card ─────────────────────────────────────
   headerCard: {
     backgroundColor: c.surface,
-    borderRadius: radii.lg,
-    borderWidth: 1,
-    borderColor: c.border,
+    borderRadius: radiusXl2,
     padding: space.lg,
     gap: space.sm,
+    ...shadow.card,
   },
-  tagPill: {
-    alignSelf: 'flex-start',
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: radii.sm,
-    backgroundColor: c.accentSoft,
-    borderWidth: 1,
-    borderColor: c.accentDim,
-  },
-  tagPillText: {
+  headerEyebrow: {
+    fontFamily: fonts.displayBold,
     fontSize: font.size.xs - 1,
-    color: c.accent,
-    fontWeight: font.weight.bold as '700',
-    letterSpacing: 0.8,
+    color: c.textMuted,
+    letterSpacing: 1.4,
     textTransform: 'uppercase',
   },
   headerDate: {
+    fontFamily: fonts.displayBold,
     color: c.text,
     fontSize: font.size.xl,
-    fontWeight: font.weight.bold as '700',
     letterSpacing: -0.4,
-    marginTop: 4,
+    marginTop: 2,
   },
-  statusRow: { flexDirection: 'row', alignItems: 'center', gap: space.md, marginTop: 4 },
-  headerMeta: { color: c.textMuted, fontSize: font.size.sm },
+  statusRow: { flexDirection: 'row', alignItems: 'center', gap: space.sm, marginTop: 4 },
+  headerMeta: {
+    fontFamily: fonts.displayMedium,
+    color: c.textMuted,
+    fontSize: font.size.sm,
+    fontVariant: ['tabular-nums'],
+  },
+  metaDot: { color: c.textDim, fontSize: font.size.sm },
+
+  // ─── Archived banner ────────────────────────────────────────────
+  archivedBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: space.sm,
+    marginTop: space.xs,
+    padding: space.md,
+    borderRadius: radii.lg,
+    backgroundColor: c.warningSoft,
+    ...shadow.sm,
+  },
+  archivedIcon: {
+    width: 30,
+    height: 30,
+    borderRadius: radii.pill,
+    backgroundColor: c.warningSoft,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  archivedText: {
+    flex: 1,
+    fontFamily: fonts.displayMedium,
+    fontSize: font.size.xs,
+    color: c.text,
+    lineHeight: 16,
+  },
 
   backBtn: { flexDirection: 'row', alignItems: 'center', gap: 2, paddingHorizontal: 4 },
   backText: {
@@ -366,53 +427,63 @@ const makeStyles = (c: ThemeColors) => StyleSheet.create({
     fontSize: font.size.base,
     marginLeft: -2,
   },
+
+  // ─── Save bar ───────────────────────────────────────────────────
   saveBar: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: space.md,
     backgroundColor: c.surface,
-    borderRadius: radii.md,
-    borderWidth: 1,
-    borderColor: c.border,
-    padding: space.md,
+    borderRadius: radii.xl,
+    padding: space.md + 2,
+    ...shadow.card,
   },
-  saveStatus: { color: c.text, fontSize: font.size.sm, fontWeight: font.weight.semibold as '600' },
+  saveStatus: {
+    fontFamily: fonts.displaySemi,
+    color: c.text,
+    fontSize: font.size.sm,
+  },
   saveBtn: {
     paddingHorizontal: space.lg,
     paddingVertical: 12,
     borderRadius: radii.md,
     backgroundColor: c.accent,
+    ...shadow.sm,
   },
   saveBtnText: {
+    fontFamily: fonts.displayBold,
     color: c.textOnAccent,
-    fontWeight: font.weight.bold as '700',
     letterSpacing: 1,
     fontSize: font.size.xs,
   },
 
+  // ─── PDF export ─────────────────────────────────────────────────
   pdfRow: { gap: 6 },
   pdfBtn: {
-    paddingVertical: space.md + 2,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: space.sm,
+    height: 52,
     paddingHorizontal: space.lg,
     borderRadius: radii.md,
     backgroundColor: c.accent,
-    alignItems: 'center',
+    ...shadow.card,
   },
   pdfBtnText: {
+    fontFamily: fonts.displayBold,
     color: c.textOnAccent,
     fontSize: font.size.sm,
-    fontWeight: font.weight.bold as '700',
     letterSpacing: 1.2,
   },
 
-  metaSmall: { color: c.textSubtle, fontSize: font.size.sm },
+  metaSmall: { fontFamily: fonts.display, color: c.textSubtle, fontSize: font.size.sm },
   errorBox: {
     backgroundColor: c.dangerSoft,
-    borderWidth: 1,
-    borderColor: c.danger,
-    borderRadius: radii.md,
+    borderRadius: radii.lg,
     padding: space.md,
+    ...shadow.sm,
   },
-  errorText: { color: c.text, fontSize: font.size.sm },
-  errorTextSm: { color: c.danger, fontSize: font.size.xs },
+  errorText: { fontFamily: fonts.display, color: c.text, fontSize: font.size.sm },
+  errorTextSm: { fontFamily: fonts.displayMedium, color: c.danger, fontSize: font.size.xs },
 });

@@ -17,7 +17,7 @@ import { useAuth } from '@/auth/AuthContext';
 import { BrandLogo } from '@/components/BrandLogo';
 import { useStyles, useThemeColors } from '@/theme/ThemeContext';
 import { fonts } from '@/theme/fonts';
-import { font, radii, space, type ThemeColors } from '@/theme/tokens';
+import { font, radii, shadow, space, type ThemeColors } from '@/theme/tokens';
 
 const RESEND_COOLDOWN_S = 30;
 
@@ -94,17 +94,20 @@ export default function OtpScreen() {
           : 'Sending your verification code…'}
       </Text>
 
-      <TextInput
-        style={styles.codeInput}
-        value={code}
-        onChangeText={(t) => setCode(t.replace(/[^0-9]/g, '').slice(0, 6))}
-        keyboardType="number-pad"
-        placeholder="••••••"
-        placeholderTextColor={c.textDim}
-        textAlign="center"
-        autoFocus
-        maxLength={6}
-      />
+      <View style={styles.codeCard}>
+        <Text style={styles.codeLabel}>Verification code</Text>
+        <TextInput
+          style={styles.codeInput}
+          value={code}
+          onChangeText={(t) => setCode(t.replace(/[^0-9]/g, '').slice(0, 6))}
+          keyboardType="number-pad"
+          placeholder="••••••"
+          placeholderTextColor={c.textDim}
+          textAlign="center"
+          autoFocus
+          maxLength={6}
+        />
+      </View>
 
       {error ? <Text style={styles.errorText}>{error}</Text> : null}
 
@@ -113,7 +116,8 @@ export default function OtpScreen() {
         disabled={verifying || code.length < 6}
         style={({ pressed }) => [
           styles.primaryBtn,
-          { opacity: verifying || code.length < 6 ? 0.45 : pressed ? 0.85 : 1 },
+          (verifying || code.length < 6) && { opacity: 0.45 },
+          !(verifying || code.length < 6) && pressed && { opacity: 0.9, transform: [{ scale: 0.985 }] },
         ]}
       >
         {verifying ? (
@@ -126,14 +130,21 @@ export default function OtpScreen() {
       <Pressable
         onPress={() => void send()}
         disabled={sending || cooldown > 0}
-        style={{ opacity: sending || cooldown > 0 ? 0.5 : 1, marginTop: space.md }}
+        style={({ pressed }) => [
+          styles.resendBtn,
+          { opacity: sending || cooldown > 0 ? 0.5 : 1 },
+          pressed && !(sending || cooldown > 0) && { transform: [{ scale: 0.985 }] },
+        ]}
       >
         <Text style={styles.resendText}>
           {cooldown > 0 ? `Resend code in ${cooldown}s` : 'Resend code'}
         </Text>
       </Pressable>
 
-      <Pressable onPress={() => void signOut()} style={{ marginTop: space.lg }}>
+      <Pressable
+        onPress={() => void signOut()}
+        style={({ pressed }) => [styles.signOutBtn, pressed && { opacity: 0.7 }]}
+      >
         <Text style={styles.signOutText}>Sign out</Text>
       </Pressable>
     </KeyboardAvoidingView>
@@ -174,25 +185,47 @@ const makeStyles = (c: ThemeColors) =>
       color: c.textMuted,
       lineHeight: 20,
     },
-    codeInput: {
+    codeCard: {
       marginTop: space.lg,
-      borderWidth: 1,
-      borderColor: c.border,
-      borderRadius: radii.md,
       backgroundColor: c.surface,
+      borderRadius: radii.xl,
+      padding: space.lg,
+      gap: space.sm,
+      ...shadow.card,
+    },
+    codeLabel: {
+      fontFamily: fonts.displayBold,
+      fontSize: font.size.xs,
+      color: c.textMuted,
+      letterSpacing: 1,
+      textTransform: 'uppercase',
+      textAlign: 'center',
+    },
+    codeInput: {
+      borderRadius: radii.md,
+      backgroundColor: c.surfaceElevated,
       color: c.text,
       fontFamily: fonts.displayBold,
-      fontSize: 32,
-      letterSpacing: 12,
-      paddingVertical: space.md,
+      fontSize: 36,
+      letterSpacing: 14,
+      paddingVertical: space.base,
+      ...shadow.sm,
     },
-    errorText: { fontFamily: fonts.display, color: c.danger, fontSize: font.size.sm },
+    errorText: {
+      fontFamily: fonts.displayMedium,
+      color: c.danger,
+      fontSize: font.size.sm,
+      textAlign: 'center',
+      marginTop: space.sm,
+    },
     primaryBtn: {
       marginTop: space.md,
+      height: 52,
       backgroundColor: c.accent,
       borderRadius: radii.md,
       alignItems: 'center',
-      paddingVertical: space.md + 2,
+      justifyContent: 'center',
+      ...shadow.card,
     },
     primaryBtnLabel: {
       fontFamily: fonts.displayBold,
@@ -200,12 +233,14 @@ const makeStyles = (c: ThemeColors) =>
       fontSize: font.size.sm,
       letterSpacing: 1.2,
     },
+    resendBtn: { marginTop: space.md, alignSelf: 'center', paddingVertical: space.xs },
     resendText: {
       fontFamily: fonts.displaySemi,
       color: c.accent,
       fontSize: font.size.sm,
       textAlign: 'center',
     },
+    signOutBtn: { marginTop: space.lg, alignSelf: 'center', paddingVertical: space.xs },
     signOutText: {
       fontFamily: fonts.display,
       color: c.textSubtle,

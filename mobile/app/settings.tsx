@@ -7,7 +7,7 @@ import { updateMe } from '@/api/accounts';
 import { useAuth } from '@/auth/AuthContext';
 import { useStyles, useTheme, useThemeColors } from '@/theme/ThemeContext';
 import { fonts } from '@/theme/fonts';
-import { font, radii, space, type ThemeColors } from '@/theme/tokens';
+import { font, radii, shadow, space, type ThemeColors } from '@/theme/tokens';
 
 type Mode = 'light' | 'dark' | 'system';
 const MODE_OPTIONS: { value: Mode; label: string; icon: React.ComponentProps<typeof Feather>['name'] }[] = [
@@ -70,9 +70,7 @@ export default function SettingsScreen() {
 
         {/* Notifications — follow-up reminder push alerts for the doctor */}
         <View style={styles.card}>
-          <View style={styles.tagPill}>
-            <Text style={styles.tagPillText}>Notifications</Text>
-          </View>
+          <Text style={styles.eyebrow}>Notifications</Text>
           <View style={styles.toggleRow}>
             <View style={{ flex: 1, paddingRight: space.md }}>
               <Text style={styles.toggleLabel}>Follow-up reminders</Text>
@@ -91,11 +89,9 @@ export default function SettingsScreen() {
         </View>
 
         <View style={styles.card}>
-          <View style={styles.tagPill}>
-            <Text style={styles.tagPillText}>Appearance</Text>
-          </View>
+          <Text style={styles.eyebrow}>Appearance</Text>
           <Text style={styles.hint}>
-            Choose light, dark, or follow your iPhone setting.
+            Choose light, dark, or follow your device setting.
           </Text>
           <View style={styles.segRow}>
             {MODE_OPTIONS.map((opt) => {
@@ -104,7 +100,11 @@ export default function SettingsScreen() {
                 <Pressable
                   key={opt.value}
                   onPress={() => setMode(opt.value)}
-                  style={[styles.segBtn, active && styles.segBtnActive]}
+                  style={({ pressed }) => [
+                    styles.segBtn,
+                    active && styles.segBtnActive,
+                    pressed && { opacity: 0.9, transform: [{ scale: 0.985 }] },
+                  ]}
                   accessibilityRole="button"
                   accessibilityLabel={`Appearance: ${opt.label}`}
                 >
@@ -127,9 +127,19 @@ export default function SettingsScreen() {
 const makeStyles = (c: ThemeColors) =>
   StyleSheet.create({
     container: { flex: 1, backgroundColor: c.bg },
-    toggleRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 4 },
-    toggleLabel: { fontFamily: fonts.displaySemi, fontSize: font.size.base, color: c.text },
-    scroll: { padding: space.lg, gap: space.lg, paddingBottom: 60 },
+    toggleRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      marginTop: space.xs,
+    },
+    toggleLabel: {
+      fontFamily: fonts.displaySemi,
+      fontSize: font.size.base,
+      color: c.text,
+      letterSpacing: -0.2,
+    },
+    scroll: { padding: space.lg, gap: space.md, paddingBottom: 60 },
     backBtn: { flexDirection: 'row', alignItems: 'center', gap: 2, paddingHorizontal: 4 },
     backText: {
       fontFamily: fonts.displaySemi,
@@ -143,29 +153,20 @@ const makeStyles = (c: ThemeColors) =>
       lineHeight: 40,
       color: c.text,
       letterSpacing: -1,
+      marginBottom: space.xs,
     },
     card: {
       backgroundColor: c.surface,
-      borderRadius: radii.lg,
-      borderWidth: 1,
-      borderColor: c.border,
+      borderRadius: radii.xl,
       padding: space.lg,
       gap: space.sm,
+      ...shadow.card,
     },
-    tagPill: {
-      alignSelf: 'flex-start',
-      paddingHorizontal: 8,
-      paddingVertical: 3,
-      borderRadius: radii.sm,
-      backgroundColor: c.accentSoft,
-      borderWidth: 1,
-      borderColor: c.accentDim,
-    },
-    tagPillText: {
+    eyebrow: {
       fontFamily: fonts.displayBold,
-      fontSize: font.size.xs - 1,
-      color: c.accent,
-      letterSpacing: 0.8,
+      fontSize: font.size.xs,
+      color: c.textMuted,
+      letterSpacing: 1,
       textTransform: 'uppercase',
     },
     hint: {
@@ -177,12 +178,10 @@ const makeStyles = (c: ThemeColors) =>
     segRow: {
       flexDirection: 'row',
       gap: 6,
-      padding: 4,
-      backgroundColor: c.surfaceElevated,
-      borderRadius: radii.md,
-      borderWidth: 1,
-      borderColor: c.border,
-      marginTop: 4,
+      padding: 5,
+      backgroundColor: c.surfaceHover,
+      borderRadius: radii.lg,
+      marginTop: space.xs,
     },
     segBtn: {
       flex: 1,
@@ -190,43 +189,10 @@ const makeStyles = (c: ThemeColors) =>
       alignItems: 'center',
       justifyContent: 'center',
       gap: 6,
-      paddingVertical: 10,
-      borderRadius: radii.sm,
+      paddingVertical: 11,
+      borderRadius: radii.md,
     },
-    segBtnActive: { backgroundColor: c.accent },
-    linkRow: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: space.md,
-      backgroundColor: c.surface,
-      borderRadius: radii.lg,
-      borderWidth: 1,
-      borderColor: c.border,
-      paddingHorizontal: space.lg,
-      paddingVertical: space.md + 2,
-    },
-    linkIcon: {
-      width: 36,
-      height: 36,
-      borderRadius: radii.sm,
-      backgroundColor: c.accentSoft,
-      borderWidth: 1,
-      borderColor: c.accentDim,
-      alignItems: 'center',
-      justifyContent: 'center',
-    },
-    linkLabel: {
-      fontFamily: fonts.displaySemi,
-      fontSize: font.size.base,
-      color: c.text,
-      letterSpacing: -0.2,
-    },
-    linkHint: {
-      fontFamily: fonts.display,
-      fontSize: font.size.xs,
-      color: c.textMuted,
-      marginTop: 2,
-    },
+    segBtnActive: { backgroundColor: c.accent, ...shadow.sm },
     segText: {
       fontFamily: fonts.displayBold,
       color: c.textMuted,

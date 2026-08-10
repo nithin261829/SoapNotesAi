@@ -20,7 +20,7 @@ import {
 import { useAuth } from '@/auth/AuthContext';
 import { useStyles, useThemeColors } from '@/theme/ThemeContext';
 import { fonts } from '@/theme/fonts';
-import { font, radii, space, type ThemeColors } from '@/theme/tokens';
+import { font, radii, radiusXl2, shadow, space, type ThemeColors } from '@/theme/tokens';
 
 const MAX_PROOF_BYTES = 10 * 1024 * 1024; // 10MB
 
@@ -184,7 +184,9 @@ export default function VerificationScreen() {
                   <Text style={styles.tagPillText}>Under review</Text>
                 </View>
                 <View style={styles.pendingRow}>
-                  <Feather name="clock" size={18} color={c.accent} />
+                  <View style={styles.pendingIcon}>
+                    <Feather name="clock" size={18} color={c.accent} />
+                  </View>
                   <Text style={styles.pendingText}>Documents under review</Text>
                 </View>
                 <Text style={styles.hint}>
@@ -213,7 +215,10 @@ export default function VerificationScreen() {
                     setRegistrationNumber(status.registration_number ?? '');
                     setError(null);
                   }}
-                  style={({ pressed }) => [styles.primaryBtn, { opacity: pressed ? 0.85 : 1 }]}
+                  style={({ pressed }) => [
+                    styles.primaryBtn,
+                    pressed && { opacity: 0.9, transform: [{ scale: 0.985 }] },
+                  ]}
                   accessibilityRole="button"
                   accessibilityLabel="Resubmit verification documents"
                 >
@@ -255,7 +260,10 @@ export default function VerificationScreen() {
 
                 <Pressable
                   onPress={() => void pickFile()}
-                  style={({ pressed }) => [styles.attachBtn, { opacity: pressed ? 0.85 : 1 }]}
+                  style={({ pressed }) => [
+                    styles.attachBtn,
+                    pressed && { opacity: 0.9, transform: [{ scale: 0.985 }] },
+                  ]}
                   accessibilityRole="button"
                   accessibilityLabel="Attach proof document"
                 >
@@ -276,7 +284,8 @@ export default function VerificationScreen() {
                   disabled={submitting || !canSubmit}
                   style={({ pressed }) => [
                     styles.primaryBtn,
-                    { opacity: submitting || !canSubmit ? 0.5 : pressed ? 0.85 : 1 },
+                    (submitting || !canSubmit) && { opacity: 0.5 },
+                    pressed && { opacity: 0.9, transform: [{ scale: 0.985 }] },
                   ]}
                   accessibilityRole="button"
                   accessibilityLabel="Submit for verification"
@@ -305,7 +314,7 @@ export default function VerificationScreen() {
 const makeStyles = (c: ThemeColors) =>
   StyleSheet.create({
     container: { flex: 1, backgroundColor: c.bg },
-    scroll: { padding: space.lg, gap: space.lg, paddingBottom: 60 },
+    scroll: { padding: space.lg, gap: space.md, paddingBottom: 60 },
     backBtn: { flexDirection: 'row', alignItems: 'center', gap: 2, paddingHorizontal: 4 },
     backText: {
       fontFamily: fonts.displaySemi,
@@ -319,48 +328,47 @@ const makeStyles = (c: ThemeColors) =>
       lineHeight: 40,
       color: c.text,
       letterSpacing: -1,
+      marginBottom: space.xs,
     },
     card: {
       backgroundColor: c.surface,
-      borderRadius: radii.lg,
-      borderWidth: 1,
-      borderColor: c.border,
+      borderRadius: radii.xl,
       padding: space.lg,
       gap: space.sm,
+      ...shadow.card,
     },
     successCard: {
-      borderColor: c.success,
       backgroundColor: c.successSoft,
+      borderRadius: radiusXl2,
       alignItems: 'center',
       paddingVertical: space.xl,
+      ...shadow.raised,
     },
     successIconWrap: {
-      width: 56,
-      height: 56,
-      borderRadius: 28,
+      width: 64,
+      height: 64,
+      borderRadius: 32,
       backgroundColor: c.success,
       alignItems: 'center',
       justifyContent: 'center',
-      marginBottom: 4,
+      marginBottom: space.xs,
+      ...shadow.card,
     },
     successTitle: {
       fontFamily: fonts.displayBold,
-      fontSize: font.size.lg,
+      fontSize: font.size.xl,
       color: c.success,
       letterSpacing: -0.3,
     },
     tagPill: {
       alignSelf: 'flex-start',
-      paddingHorizontal: 8,
-      paddingVertical: 3,
-      borderRadius: radii.sm,
+      paddingHorizontal: 10,
+      paddingVertical: 4,
+      borderRadius: radii.pill,
       backgroundColor: c.accentSoft,
-      borderWidth: 1,
-      borderColor: c.accentDim,
     },
     tagPillDanger: {
       backgroundColor: c.dangerSoft,
-      borderColor: c.danger,
     },
     tagPillText: {
       fontFamily: fonts.displayBold,
@@ -375,7 +383,15 @@ const makeStyles = (c: ThemeColors) =>
       color: c.textMuted,
       lineHeight: 18,
     },
-    pendingRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 4 },
+    pendingRow: { flexDirection: 'row', alignItems: 'center', gap: space.md, marginTop: 4 },
+    pendingIcon: {
+      width: 40,
+      height: 40,
+      borderRadius: radii.pill,
+      backgroundColor: c.accentSoft,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
     pendingText: {
       fontFamily: fonts.displayBold,
       fontSize: font.size.base,
@@ -397,23 +413,20 @@ const makeStyles = (c: ThemeColors) =>
       marginTop: 6,
     },
     input: {
-      borderWidth: 1,
-      borderColor: c.border,
       borderRadius: radii.md,
       backgroundColor: c.surfaceElevated,
       color: c.text,
       fontFamily: fonts.display,
       fontSize: font.size.base,
       paddingHorizontal: space.md,
-      paddingVertical: 10,
+      paddingVertical: 14,
+      ...shadow.sm,
     },
     attachBtn: {
       flexDirection: 'row',
       alignItems: 'center',
       justifyContent: 'center',
       gap: 8,
-      borderWidth: 1,
-      borderColor: c.accentDim,
       backgroundColor: c.accentSoft,
       borderRadius: radii.md,
       paddingVertical: space.md,
@@ -436,8 +449,10 @@ const makeStyles = (c: ThemeColors) =>
       backgroundColor: c.accent,
       borderRadius: radii.md,
       alignItems: 'center',
-      paddingVertical: space.md,
-      marginTop: 6,
+      justifyContent: 'center',
+      height: 52,
+      marginTop: space.sm,
+      ...shadow.card,
     },
     primaryBtnText: {
       fontFamily: fonts.displayBold,

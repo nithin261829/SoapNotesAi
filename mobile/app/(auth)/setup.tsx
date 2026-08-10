@@ -17,7 +17,7 @@ import { AccountsError } from '@/api/accounts';
 import { useAuth } from '@/auth/AuthContext';
 import { useStyles, useThemeColors } from '@/theme/ThemeContext';
 import { fonts } from '@/theme/fonts';
-import { font, radii, space, type ThemeColors } from '@/theme/tokens';
+import { font, radii, shadow, space, type ThemeColors } from '@/theme/tokens';
 
 export default function SetupScreen() {
   const c = useThemeColors();
@@ -86,17 +86,13 @@ export default function SetupScreen() {
 
         {/* Form card */}
         <View style={styles.card}>
-          <View style={styles.tagPill}>
-            <Text style={styles.tagPillText}>Organization</Text>
-          </View>
+          <Text style={styles.eyebrow}>Organization</Text>
           <Field label="Organization name" value={orgName} onChangeText={setOrgName} placeholder="e.g. Acme Health Group" />
           <Field label="Clinic name" value={clinicName} onChangeText={setClinicName} placeholder="e.g. Downtown Family Practice" />
 
           <View style={styles.divider} />
 
-          <View style={styles.tagPill}>
-            <Text style={styles.tagPillText}>Your profile (optional)</Text>
-          </View>
+          <Text style={styles.eyebrow}>Your profile (optional)</Text>
           <Field label="Your name" value={displayName} onChangeText={setDisplayName} placeholder="Jane Smith" />
           <Text style={styles.fieldHint}>No need to add “Dr.” — we add it automatically.</Text>
           <Field label="Credentials" value={credentials} onChangeText={setCredentials} placeholder="MD" autoCapitalize="characters" />
@@ -112,7 +108,8 @@ export default function SetupScreen() {
             onPress={() => void onCreate()}
             style={({ pressed }) => [
               styles.primaryBtn,
-              { opacity: createDisabled ? 0.45 : pressed ? 0.85 : 1 },
+              createDisabled && { opacity: 0.45 },
+              !createDisabled && pressed && { opacity: 0.9, transform: [{ scale: 0.985 }] },
             ]}
           >
             {submitting ? (
@@ -126,7 +123,10 @@ export default function SetupScreen() {
         <Pressable
           onPress={() => void signOut()}
           accessibilityRole="button"
-          style={styles.signOutLink}
+          style={({ pressed }) => [
+            styles.signOutLink,
+            pressed && { opacity: 0.9, transform: [{ scale: 0.985 }] },
+          ]}
         >
           <Text style={styles.signOutLinkText}>Sign out</Text>
         </Pressable>
@@ -215,126 +215,97 @@ const makeStyles = (c: ThemeColors) => StyleSheet.create({
     letterSpacing: 0.4,
     marginTop: space.sm,
   },
-  hero: { gap: space.md },
-  brandRow: { flexDirection: 'row', alignItems: 'center', gap: space.md },
-  brandMark: {
-    width: 44,
-    height: 44,
-    borderRadius: 12,
-    backgroundColor: c.accent,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  brandMarkText: { fontSize: 22, fontWeight: '900', color: c.textOnAccent, letterSpacing: -1 },
-  brandEyebrow: { fontSize: font.size.base, color: c.text, fontWeight: font.weight.bold as '700' },
-  brandSubeyebrow: { fontSize: font.size.xs, color: c.textMuted, letterSpacing: 0.8, textTransform: 'uppercase' },
+  hero: { gap: space.sm },
   title: {
+    fontFamily: fonts.displayBold,
     fontSize: font.size.hero - 6,
     color: c.text,
-    fontWeight: font.weight.bold as '700',
     letterSpacing: -1.2,
     lineHeight: 44,
     marginTop: space.sm,
   },
-  subtitle: { fontSize: font.size.md, color: c.textMuted, lineHeight: 22 },
-
-  tabsRow: {
-    flexDirection: 'row',
-    gap: 6,
-    padding: 4,
-    backgroundColor: c.surface,
-    borderRadius: radii.md,
-    borderWidth: 1,
-    borderColor: c.border,
-  },
-  tab: { flex: 1, paddingVertical: 10, alignItems: 'center', borderRadius: radii.sm },
-  tabSelected: { backgroundColor: c.accent },
-  tabText: {
+  subtitle: {
+    fontFamily: fonts.display,
+    fontSize: font.size.md,
     color: c.textMuted,
-    fontSize: font.size.sm,
-    fontWeight: font.weight.bold as '700',
-    letterSpacing: 0.5,
+    lineHeight: 22,
   },
-  tabTextSelected: { color: c.textOnAccent },
 
   card: {
     backgroundColor: c.surface,
-    borderRadius: radii.lg,
-    borderWidth: 1,
-    borderColor: c.border,
+    borderRadius: radii.xl,
     padding: space.lg,
     gap: space.base,
+    ...shadow.card,
   },
-  tagPill: {
-    alignSelf: 'flex-start',
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: radii.sm,
-    backgroundColor: c.accentSoft,
-    borderWidth: 1,
-    borderColor: c.accentDim,
-  },
-  tagPillText: {
-    fontSize: font.size.xs - 1,
-    color: c.accent,
-    fontWeight: font.weight.bold as '700',
-    letterSpacing: 0.8,
+  eyebrow: {
+    fontFamily: fonts.displayBold,
+    fontSize: font.size.xs,
+    color: c.textMuted,
+    letterSpacing: 1,
     textTransform: 'uppercase',
   },
   fieldHint: { fontFamily: fonts.display, fontSize: font.size.xs, color: c.textMuted, marginTop: -2 },
   label: {
+    fontFamily: fonts.displayBold,
     fontSize: font.size.xs,
     color: c.textMuted,
-    fontWeight: font.weight.bold as '700',
     letterSpacing: 0.8,
     textTransform: 'uppercase',
   },
   input: {
-    backgroundColor: c.surfaceElevated,
-    borderWidth: 1,
-    borderColor: c.border,
+    backgroundColor: c.surface,
     borderRadius: radii.md,
-    paddingHorizontal: space.md,
+    paddingHorizontal: space.base,
     paddingVertical: Platform.OS === 'ios' ? 14 : 10,
     color: c.text,
+    fontFamily: fonts.display,
     fontSize: font.size.base,
+    ...shadow.sm,
   },
   divider: { height: 1, backgroundColor: c.border, marginVertical: 4 },
 
   errorBox: {
     backgroundColor: c.dangerSoft,
-    borderWidth: 1,
-    borderColor: c.danger,
     borderRadius: radii.md,
     padding: space.md,
+    ...shadow.sm,
   },
-  errorText: { color: c.text, fontSize: font.size.sm, lineHeight: 19 },
+  errorText: {
+    fontFamily: fonts.displayMedium,
+    color: c.danger,
+    fontSize: font.size.sm,
+    lineHeight: 19,
+  },
 
   primaryBtn: {
     marginTop: space.xs,
-    paddingVertical: space.md + 2,
+    height: 52,
     paddingHorizontal: space.lg,
     borderRadius: radii.md,
     backgroundColor: c.accent,
     alignItems: 'center',
+    justifyContent: 'center',
+    ...shadow.card,
   },
   primaryBtnLabel: {
+    fontFamily: fonts.displayBold,
     color: c.textOnAccent,
     fontSize: font.size.sm,
-    fontWeight: font.weight.bold as '700',
     letterSpacing: 1.2,
   },
 
   signOutLink: { alignSelf: 'center', paddingVertical: space.md },
   signOutLinkText: {
+    fontFamily: fonts.displaySemi,
     color: c.textMuted,
     fontSize: font.size.sm,
-    fontWeight: font.weight.bold as '700',
     letterSpacing: 0.5,
   },
 
   disclaimer: {
     marginTop: 'auto',
+    fontFamily: fonts.display,
     fontSize: font.size.xs,
     color: c.textDim,
     textAlign: 'center',

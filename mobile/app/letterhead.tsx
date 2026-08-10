@@ -22,7 +22,7 @@ import {
 import { useAuth } from '@/auth/AuthContext';
 import { useStyles, useThemeColors } from '@/theme/ThemeContext';
 import { fonts } from '@/theme/fonts';
-import { font, radii, space, type ThemeColors } from '@/theme/tokens';
+import { font, radii, shadow, space, type ThemeColors } from '@/theme/tokens';
 
 const MAX_LOGO_BYTES = 5 * 1024 * 1024; // 5MB
 
@@ -295,7 +295,10 @@ export default function LetterheadScreen() {
 
               <Pressable
                 onPress={() => void pickLogo()}
-                style={({ pressed }) => [styles.attachBtn, { opacity: pressed ? 0.85 : 1 }]}
+                style={({ pressed }) => [
+                  styles.attachBtn,
+                  pressed && { opacity: 0.9, transform: [{ scale: 0.985 }] },
+                ]}
                 accessibilityRole="button"
                 accessibilityLabel="Choose logo image"
               >
@@ -322,7 +325,8 @@ export default function LetterheadScreen() {
                 disabled={saving || !hasChanges}
                 style={({ pressed }) => [
                   styles.primaryBtn,
-                  { opacity: saving || !hasChanges ? 0.5 : pressed ? 0.85 : 1 },
+                  (saving || !hasChanges) && { opacity: 0.5 },
+                  pressed && { opacity: 0.9, transform: [{ scale: 0.985 }] },
                 ]}
                 accessibilityRole="button"
                 accessibilityLabel="Save letterhead"
@@ -353,7 +357,7 @@ export default function LetterheadScreen() {
 const makeStyles = (c: ThemeColors) =>
   StyleSheet.create({
     container: { flex: 1, backgroundColor: c.bg },
-    scroll: { padding: space.lg, gap: space.lg, paddingBottom: 60 },
+    scroll: { padding: space.lg, gap: space.md, paddingBottom: 60 },
     backBtn: { flexDirection: 'row', alignItems: 'center', gap: 2, paddingHorizontal: 4 },
     backText: {
       fontFamily: fonts.displaySemi,
@@ -367,21 +371,20 @@ const makeStyles = (c: ThemeColors) =>
       lineHeight: 40,
       color: c.text,
       letterSpacing: -1,
+      marginBottom: space.xs,
     },
     feeBanner: {
       flexDirection: 'row',
       alignItems: 'center',
-      gap: 8,
+      gap: 10,
       backgroundColor: c.accentSoft,
-      borderWidth: 1,
-      borderColor: c.accentDim,
-      borderRadius: radii.md,
+      borderRadius: radii.lg,
       paddingHorizontal: space.md,
-      paddingVertical: space.sm + 2,
+      paddingVertical: space.md,
+      ...shadow.sm,
     },
     feeBannerFree: {
       backgroundColor: c.successSoft,
-      borderColor: c.success,
     },
     feeBannerText: {
       flex: 1,
@@ -392,20 +395,17 @@ const makeStyles = (c: ThemeColors) =>
     },
     card: {
       backgroundColor: c.surface,
-      borderRadius: radii.lg,
-      borderWidth: 1,
-      borderColor: c.border,
+      borderRadius: radii.xl,
       padding: space.lg,
       gap: space.sm,
+      ...shadow.card,
     },
     tagPill: {
       alignSelf: 'flex-start',
-      paddingHorizontal: 8,
-      paddingVertical: 3,
-      borderRadius: radii.sm,
+      paddingHorizontal: 10,
+      paddingVertical: 4,
+      borderRadius: radii.pill,
       backgroundColor: c.accentSoft,
-      borderWidth: 1,
-      borderColor: c.accentDim,
     },
     tagPillText: {
       fontFamily: fonts.displayBold,
@@ -428,27 +428,24 @@ const makeStyles = (c: ThemeColors) =>
       marginTop: 6,
     },
     input: {
-      borderWidth: 1,
-      borderColor: c.border,
       borderRadius: radii.md,
       backgroundColor: c.surfaceElevated,
       color: c.text,
       fontFamily: fonts.display,
       fontSize: font.size.base,
       paddingHorizontal: space.md,
-      paddingVertical: 10,
+      paddingVertical: 14,
+      ...shadow.sm,
     },
     inputMultiline: {
       minHeight: 84,
-      paddingTop: 10,
+      paddingTop: 14,
     },
     attachBtn: {
       flexDirection: 'row',
       alignItems: 'center',
       justifyContent: 'center',
       gap: 8,
-      borderWidth: 1,
-      borderColor: c.accentDim,
       backgroundColor: c.accentSoft,
       borderRadius: radii.md,
       paddingVertical: space.md,
@@ -478,8 +475,10 @@ const makeStyles = (c: ThemeColors) =>
       backgroundColor: c.accent,
       borderRadius: radii.md,
       alignItems: 'center',
-      paddingVertical: space.md,
-      marginTop: 6,
+      justifyContent: 'center',
+      height: 52,
+      marginTop: space.sm,
+      ...shadow.card,
     },
     primaryBtnText: {
       fontFamily: fonts.displayBold,

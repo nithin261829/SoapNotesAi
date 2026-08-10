@@ -31,7 +31,7 @@ import {
 } from '@/payments/razorpay';
 import { useStyles, useThemeColors } from '@/theme/ThemeContext';
 import { fonts } from '@/theme/fonts';
-import { font, radii, space, type ThemeColors } from '@/theme/tokens';
+import { font, radii, radiusXl2, shadow, space, type ThemeColors } from '@/theme/tokens';
 
 const TOPUP_PRESETS_INR = [100, 250, 500, 1000];
 
@@ -177,17 +177,18 @@ export default function PaymentsScreen() {
           <ActivityIndicator color={c.accent} style={{ marginTop: 40 }} />
         ) : (
           <>
-            {/* Wallet */}
-            <View style={styles.card}>
-              <View style={styles.tagPill}>
-                <Text style={styles.tagPillText}>Wallet</Text>
-              </View>
+            {/* Wallet — premium hero */}
+            <View style={styles.heroCard}>
+              <Text style={styles.heroEyebrow}>Wallet balance</Text>
               <Text style={styles.balance}>{formatInr(wallet?.balance_paise ?? 0)}</Text>
-              <Text style={styles.hint}>
+              <Text style={styles.heroHint}>
                 Prepaid balance. Pay-per-note generation costs{' '}
                 {plans ? formatInr(plans.per_note_paise) : '₹5'} per note.
               </Text>
 
+              <View style={styles.heroDivider} />
+
+              <Text style={styles.eyebrow}>Add money</Text>
               <View style={styles.presetRow}>
                 {TOPUP_PRESETS_INR.map((amt) => {
                   const active = !customTopup && topupInr === amt;
@@ -198,7 +199,11 @@ export default function PaymentsScreen() {
                         setTopupInr(amt);
                         setCustomTopup('');
                       }}
-                      style={[styles.presetBtn, active && styles.presetBtnActive]}
+                      style={({ pressed }) => [
+                        styles.presetBtn,
+                        active && styles.presetBtnActive,
+                        pressed && { opacity: 0.9, transform: [{ scale: 0.985 }] },
+                      ]}
                     >
                       <Text style={[styles.presetText, active && styles.presetTextActive]}>
                         ₹{amt}
@@ -223,7 +228,8 @@ export default function PaymentsScreen() {
                 disabled={paying !== null || !customValid || !effectiveTopup}
                 style={({ pressed }) => [
                   styles.payBtn,
-                  { opacity: paying !== null || !customValid ? 0.5 : pressed ? 0.85 : 1 },
+                  (paying !== null || !customValid) && { opacity: 0.5 },
+                  pressed && { opacity: 0.9, transform: [{ scale: 0.985 }] },
                 ]}
               >
                 {paying === 'wallet_topup' ? (
@@ -250,7 +256,8 @@ export default function PaymentsScreen() {
                   disabled={paying !== null}
                   style={({ pressed }) => [
                     styles.payBtn,
-                    { opacity: paying !== null ? 0.5 : pressed ? 0.85 : 1 },
+                    paying !== null && { opacity: 0.5 },
+                    pressed && { opacity: 0.9, transform: [{ scale: 0.985 }] },
                   ]}
                 >
                   {paying === 'joining_fee' ? (
@@ -300,7 +307,9 @@ export default function PaymentsScreen() {
                 <View style={styles.featureList}>
                   {plan.features.map((f) => (
                     <View key={f} style={styles.featureRow}>
-                      <Feather name="check" size={14} color={c.accent} />
+                      <View style={styles.featureTick}>
+                        <Feather name="check" size={12} color={c.accent} />
+                      </View>
                       <Text style={styles.featureText}>{f}</Text>
                     </View>
                   ))}
@@ -316,7 +325,8 @@ export default function PaymentsScreen() {
                     disabled={paying !== null}
                     style={({ pressed }) => [
                       styles.payBtn,
-                      { opacity: paying !== null ? 0.5 : pressed ? 0.85 : 1 },
+                      paying !== null && { opacity: 0.5 },
+                      pressed && { opacity: 0.9, transform: [{ scale: 0.985 }] },
                     ]}
                   >
                     {paying ===
@@ -340,11 +350,18 @@ export default function PaymentsScreen() {
                 </View>
                 {wallet.transactions.map((tx, i) => (
                   <View key={`${tx.created_at}-${i}`} style={styles.txRow}>
-                    <Feather
-                      name={tx.type === 'credit' ? 'arrow-down-left' : 'arrow-up-right'}
-                      size={16}
-                      color={tx.type === 'credit' ? c.accent : c.textMuted}
-                    />
+                    <View
+                      style={[
+                        styles.txIcon,
+                        { backgroundColor: tx.type === 'credit' ? c.accentSoft : c.surfaceElevated },
+                      ]}
+                    >
+                      <Feather
+                        name={tx.type === 'credit' ? 'arrow-down-left' : 'arrow-up-right'}
+                        size={15}
+                        color={tx.type === 'credit' ? c.accent : c.textMuted}
+                      />
+                    </View>
                     <View style={{ flex: 1 }}>
                       <Text style={styles.txReason}>{tx.reason.replace(/_/g, ' ')}</Text>
                       <Text style={styles.txDate}>
@@ -372,7 +389,7 @@ export default function PaymentsScreen() {
 const makeStyles = (c: ThemeColors) =>
   StyleSheet.create({
     container: { flex: 1, backgroundColor: c.bg },
-    scroll: { padding: space.lg, gap: space.lg, paddingBottom: 60 },
+    scroll: { padding: space.lg, gap: space.md, paddingBottom: 60 },
     backBtn: { flexDirection: 'row', alignItems: 'center', gap: 2, paddingHorizontal: 4 },
     backText: {
       fontFamily: fonts.displaySemi,
@@ -386,23 +403,58 @@ const makeStyles = (c: ThemeColors) =>
       lineHeight: 40,
       color: c.text,
       letterSpacing: -1,
+      marginBottom: space.xs,
     },
+
+    // Standard card — soft-shadowed, borderless.
     card: {
       backgroundColor: c.surface,
-      borderRadius: radii.lg,
-      borderWidth: 1,
-      borderColor: c.border,
+      borderRadius: radii.xl,
       padding: space.lg,
       gap: space.sm,
+      ...shadow.card,
     },
+
+    // Premium wallet hero.
+    heroCard: {
+      backgroundColor: c.surface,
+      borderRadius: radiusXl2,
+      padding: space.lg,
+      gap: space.sm,
+      ...shadow.raised,
+    },
+    heroEyebrow: {
+      fontFamily: fonts.displayBold,
+      fontSize: font.size.xs,
+      color: c.textMuted,
+      letterSpacing: 1,
+      textTransform: 'uppercase',
+    },
+    heroHint: {
+      fontFamily: fonts.display,
+      fontSize: font.size.sm,
+      color: c.textMuted,
+      lineHeight: 18,
+    },
+    heroDivider: {
+      height: 1,
+      backgroundColor: c.border,
+      marginVertical: space.sm,
+    },
+    eyebrow: {
+      fontFamily: fonts.displayBold,
+      fontSize: font.size.xs,
+      color: c.textMuted,
+      letterSpacing: 1,
+      textTransform: 'uppercase',
+    },
+
     tagPill: {
       alignSelf: 'flex-start',
-      paddingHorizontal: 8,
-      paddingVertical: 3,
-      borderRadius: radii.sm,
+      paddingHorizontal: 10,
+      paddingVertical: 4,
+      borderRadius: radii.pill,
       backgroundColor: c.accentSoft,
-      borderWidth: 1,
-      borderColor: c.accentDim,
     },
     tagPillText: {
       fontFamily: fonts.displayBold,
@@ -418,42 +470,43 @@ const makeStyles = (c: ThemeColors) =>
       lineHeight: 18,
     },
     balance: {
-      fontFamily: fonts.displayBold,
-      fontSize: 40,
+      fontFamily: fonts.displayExtra,
+      fontSize: font.size.hero,
       color: c.text,
-      letterSpacing: -1,
-      marginTop: 4,
+      letterSpacing: -1.5,
+      marginTop: 2,
     },
-    presetRow: { flexDirection: 'row', gap: 8, marginTop: 6 },
+    presetRow: { flexDirection: 'row', gap: space.sm, marginTop: 4 },
     presetBtn: {
       flex: 1,
       alignItems: 'center',
-      paddingVertical: 10,
+      paddingVertical: 12,
       borderRadius: radii.md,
-      borderWidth: 1,
-      borderColor: c.border,
       backgroundColor: c.surfaceElevated,
+      ...shadow.sm,
     },
-    presetBtnActive: { borderColor: c.accent, backgroundColor: c.accentSoft },
-    presetText: { fontFamily: fonts.displayBold, color: c.textMuted, fontSize: font.size.sm },
-    presetTextActive: { color: c.accent },
+    presetBtnActive: { backgroundColor: c.accent },
+    presetText: { fontFamily: fonts.displayBold, color: c.text, fontSize: font.size.base },
+    presetTextActive: { color: c.textOnAccent },
     customInput: {
-      borderWidth: 1,
-      borderColor: c.border,
       borderRadius: radii.md,
       backgroundColor: c.surfaceElevated,
       color: c.text,
       fontFamily: fonts.display,
       fontSize: font.size.base,
       paddingHorizontal: space.md,
-      paddingVertical: 10,
+      paddingVertical: 14,
+      marginTop: 4,
+      ...shadow.sm,
     },
     payBtn: {
       backgroundColor: c.accent,
       borderRadius: radii.md,
       alignItems: 'center',
-      paddingVertical: space.md,
-      marginTop: 6,
+      justifyContent: 'center',
+      height: 52,
+      marginTop: space.sm,
+      ...shadow.card,
     },
     payBtnText: {
       fontFamily: fonts.displayBold,
@@ -471,8 +524,16 @@ const makeStyles = (c: ThemeColors) =>
     },
     planStatus: { fontFamily: fonts.display, fontSize: font.size.sm, color: c.textMuted },
     planPrice: { fontFamily: fonts.displayBold, fontSize: font.size.base, color: c.accent },
-    featureList: { gap: 6, marginTop: 4 },
-    featureRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+    featureList: { gap: 8, marginTop: 6 },
+    featureRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+    featureTick: {
+      width: 20,
+      height: 20,
+      borderRadius: radii.pill,
+      backgroundColor: c.accentSoft,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
     featureText: {
       fontFamily: fonts.display,
       fontSize: font.size.sm,
@@ -483,10 +544,17 @@ const makeStyles = (c: ThemeColors) =>
     txRow: {
       flexDirection: 'row',
       alignItems: 'center',
-      gap: space.sm,
-      paddingVertical: 8,
+      gap: space.md,
+      paddingVertical: 10,
       borderBottomWidth: StyleSheet.hairlineWidth,
       borderBottomColor: c.border,
+    },
+    txIcon: {
+      width: 34,
+      height: 34,
+      borderRadius: radii.pill,
+      alignItems: 'center',
+      justifyContent: 'center',
     },
     txReason: {
       fontFamily: fonts.displaySemi,
