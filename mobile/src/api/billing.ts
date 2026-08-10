@@ -153,6 +153,7 @@ export interface BillingStatus {
   trial_days_left: number | null;
   tier: string;
   wallet_balance_paise: number;
+  retention_months: number;
 }
 
 export async function getBillingStatus(idToken: string): Promise<BillingStatus> {

@@ -18,6 +18,7 @@ import {
   patchRecordingSoap,
   type RecordingEntry,
 } from '@/api/patients';
+import { getBillingStatus } from '@/api/billing';
 import { downloadRecordingPdf, getRecordingAudioUrl } from '@/api/recordings';
 import { useAuth } from '@/auth/AuthContext';
 import { AudioPlayer } from '@/components/AudioPlayer';
@@ -52,6 +53,25 @@ export default function RecordingDetailScreen() {
 
   const [audioUrl, setAudioUrl] = useState<string | null>(null);
   const [audioUrlError, setAudioUrlError] = useState<string | null>(null);
+  const [retentionMonths, setRetentionMonths] = useState(6);
+
+  // Archived = older than the plan's guaranteed backup window (never deleted).
+  const archived =
+    entry != null &&
+    new Date(entry.recording.created_at).getTime() <
+      Date.now() - retentionMonths * 30 * 24 * 60 * 60 * 1000;
+
+  useEffect(() => {
+    void (async () => {
+      try {
+        const token = await getIdToken();
+        const s = await getBillingStatus(token);
+        setRetentionMonths(s.retention_months);
+      } catch {
+        /* default 6 months */
+      }
+    })();
+  }, [getIdToken]);
 
   const reload = useCallback(async () => {
     if (!recId) return;
@@ -201,6 +221,18 @@ export default function RecordingDetailScreen() {
                   </Text>
                 ) : null}
               </View>
+              {archived ? (
+                <Pressable
+                  onPress={() => router.push('/payments' as never)}
+                  style={styles.archivedBanner}
+                >
+                  <Feather name="archive" size={13} color={c.textMuted} />
+                  <Text style={styles.archivedText}>
+                    Archived — older than your {retentionMonths}-month backup window. Still
+                    viewable & downloadable. Upgrade to extend guaranteed backup.
+                  </Text>
+                </Pressable>
+              ) : null}
             </View>
 
             {/* Audio playback */}
@@ -287,6 +319,12 @@ const makeStyles = (c: ThemeColors) => StyleSheet.create({
   container: { flex: 1, backgroundColor: c.bg },
   scroll: { padding: space.lg, gap: space.md, paddingBottom: 60 },
 
+  archivedBanner: {
+    flexDirection: 'row', alignItems: 'center', gap: 8,
+    marginTop: 10, padding: 10, borderRadius: radii.md,
+    backgroundColor: c.surfaceElevated, borderWidth: 1, borderColor: c.border,
+  },
+  archivedText: { flex: 1, fontFamily: fonts.display, fontSize: font.size.xs, color: c.textMuted, lineHeight: 15 },
   headerCard: {
     backgroundColor: c.surface,
     borderRadius: radii.lg,

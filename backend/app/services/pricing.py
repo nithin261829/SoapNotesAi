@@ -25,3 +25,15 @@ MAX_TOPUP_PAISE = 50_000 * 100         # ₹50,000
 # The product serves Indian clinics: quota "days" run midnight-to-midnight IST,
 # not UTC (a clinic must not stay capped until 05:30 in the morning).
 IST = timezone(timedelta(hours=5, minutes=30))
+
+# Cloud-backup GUARANTEE window per plan (months). Past this, records are shown
+# as "archived" with an upgrade nudge — but NEVER deleted and NEVER hidden.
+# Deleting clinical records would breach India's medical-record retention law;
+# this is a service/backup tier, not data destruction.
+RETENTION_MONTHS = {
+    "premium": 12,
+    "standard": 6,
+    "payg": 3,
+    "trial": 6,
+    "none": 3,
+}

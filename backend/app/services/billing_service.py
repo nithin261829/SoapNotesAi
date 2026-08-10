@@ -107,6 +107,9 @@ def note_access_status(org_id: str, clinic_id: str) -> dict:
         state = "no_plan"  # never onboarded (joining fee not paid)
 
     can_create = (not enforce) or state in ("active", "trial", "payg")
+    from app.services.pricing import RETENTION_MONTHS
+
+    retention_months = RETENTION_MONTHS.get(state, RETENTION_MONTHS["none"])
     return {
         "state": state,
         "can_create": can_create,
@@ -114,6 +117,9 @@ def note_access_status(org_id: str, clinic_id: str) -> dict:
         "trial_days_left": trial_days_left,
         "tier": sub.tier,
         "wallet_balance_paise": wallet.balance_paise,
+        # Records older than this many months show as "archived" (upgrade to
+        # extend). Never deleted or hidden — legal medical-record retention.
+        "retention_months": retention_months,
     }
 
 
