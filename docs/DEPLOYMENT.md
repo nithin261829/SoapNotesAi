@@ -13,6 +13,7 @@ this document alone.
 | Database rules | Firestore security rules | Firebase | `cd firebase && npx firebase-tools deploy --only firestore:rules --project soapnotesai-dev-f7e79` |
 | Mobile apps | Expo / EAS | Play Store + App Store (pending) | `cd mobile && npx eas-cli build` |
 | Daily reminders | Cloud Scheduler `soapnotesai-daily-reminders` | 7:00 AM IST → POST /v1/internal/reminders/run | already configured |
+| Subscription sweep | Cloud Scheduler `soapnotesai-subscription-sweep` | 6:00 AM IST → POST /v1/internal/subscriptions/sweep (flips lapsed plans to `expired`, sends renewal reminders 3 days before + on expiry) | already configured |
 
 GCP/Firebase project: **soapnotesai-dev-f7e79** · GitHub: nithin261829/SoapNotesAi
 
