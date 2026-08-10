@@ -229,12 +229,23 @@ def billing_status(user: TenantUserDep) -> dict:
 
 @router.get("/plans")
 def get_plans() -> dict[str, object]:
-    """Public plan matrix — safe to expose, contains only list prices."""
+    """Public plan matrix — prices come from Firestore (app_config/pricing)."""
+    from app.services.pricing_config import get_pricing
+
+    p = get_pricing()
+    plans = [dict(pl) for pl in PLANS]
+    for pl in plans:
+        if pl["id"] == "standard":
+            pl["amount_paise"] = p.standard_monthly_paise
+        elif pl["id"] == "premium":
+            pl["amount_paise"] = p.premium_monthly_paise
+        elif pl["id"] == "payg":
+            pl["per_note_paise"] = p.per_note_paise
     return {
-        "joining_fee_paise": JOINING_FEE_PAISE,
-        "trial_days": TRIAL_DAYS,
-        "per_note_paise": PER_NOTE_PAISE,
-        "plans": PLANS,
+        "joining_fee_paise": p.joining_fee_paise,
+        "trial_days": p.trial_days,
+        "per_note_paise": p.per_note_paise,
+        "plans": plans,
     }
 
 
@@ -271,8 +282,18 @@ def get_wallet(user: OwnerDep) -> WalletResponse:
 
 @router.post("/orders", response_model=CreateOrderResponse, status_code=status.HTTP_201_CREATED)
 def create_order(body: CreateOrderRequest, user: OwnerDep) -> CreateOrderResponse:
-    """Create a Razorpay order. Amounts are decided server-side."""
-    fixed = _PURPOSE_AMOUNT[body.purpose]
+    """Create a Razorpay order. Amounts are decided server-side, from the
+    Firestore price config (app_config/pricing) — never from the client."""
+    from app.services.pricing_config import get_pricing
+
+    p = get_pricing()
+    purpose_amount = {
+        "wallet_topup": None,
+        "joining_fee": p.joining_fee_paise,
+        "subscription_standard": p.standard_monthly_paise,
+        "subscription_premium": p.premium_monthly_paise,
+    }
+    fixed = purpose_amount[body.purpose]
     if fixed is not None:
         amount_paise = fixed
     else:
@@ -281,7 +302,7 @@ def create_order(body: CreateOrderRequest, user: OwnerDep) -> CreateOrderRespons
                 status_code=status.HTTP_400_BAD_REQUEST, detail="amount_required"
             )
         amount_paise = body.amount_inr * 100
-        if not (MIN_TOPUP_PAISE <= amount_paise <= MAX_TOPUP_PAISE):
+        if not (p.min_topup_paise <= amount_paise <= p.max_topup_paise):
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST, detail="amount_out_of_range"
             )

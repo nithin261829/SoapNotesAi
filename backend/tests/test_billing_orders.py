@@ -21,14 +21,14 @@ def _order(purpose: str, amount_inr: int | None = None) -> CreateOrderRequest:
 
 
 class TestWalletTopupValidation:
-    def test_topup_without_amount_is_400(self, owner):
+    def test_topup_without_amount_is_400(self, fake_db, owner):
         with pytest.raises(HTTPException) as ei:
             create_order(_order("wallet_topup"), owner)
         assert ei.value.status_code == 400
         assert ei.value.detail == "amount_required"
 
     @pytest.mark.parametrize("amount_inr", [1, 49, 50_001, 1_000_000])
-    def test_topup_out_of_range_is_400(self, owner, amount_inr):
+    def test_topup_out_of_range_is_400(self, fake_db, owner, amount_inr):
         with pytest.raises(HTTPException) as ei:
             create_order(_order("wallet_topup", amount_inr), owner)
         assert ei.value.status_code == 400
