@@ -222,6 +222,21 @@ def signup_org(body: CreateOrgRequest, user: CurrentUserDep) -> UserProfile:
         updated_at=now,
     )
 
+    # Grant the 7-day free trial at org creation. The trial is org-level and
+    # covers every clinic; billing enforcement (app_config/billing.enforce)
+    # lets doctors record freely during it, then gates NEW notes once it
+    # lapses — viewing/downloading existing data is never gated.
+    from datetime import timedelta
+
+    from app.models.billing import SubscriptionDoc
+    from app.services.pricing import TRIAL_DAYS
+
+    trial = SubscriptionDoc(
+        status="trial",
+        trial_ends_at=now + timedelta(days=TRIAL_DAYS),
+        updated_at=now,
+    )
+
     # Single batched write so we either succeed entirely or write nothing.
     batch = db.batch()
     batch.set(
@@ -235,6 +250,10 @@ def signup_org(body: CreateOrgRequest, user: CurrentUserDep) -> UserProfile:
     batch.set(
         db.collection("users").document(user.uid),
         profile.model_dump(mode="json"),
+    )
+    batch.set(
+        db.collection("organizations").document(org_id).collection("billing").document("subscription"),
+        trial.model_dump(mode="json"),
     )
     batch.commit()
 
