@@ -80,7 +80,7 @@ Console: https://console.firebase.google.com/project/soapnotesai-dev-f7e79/fires
 | `razorpay` | `key_id`, `key_secret`, `webhook_secret` | Payments. Also point a Razorpay-dashboard webhook (payment.captured) at `<backend-url>/v1/billing/webhook` |
 | `sms` | `authkey`, `template_id` (MSG91) | OTP SMS delivery (login + verification) |
 | `smtp` | `host`, `port`, `username`, `password`, `from` | OTP email delivery |
-| `billing` | `enforce` (bool), `letterhead_change_fee_paise` | Billing kill-switch — flip `enforce: true` to start charging/capping |
+| `billing` | `enforce` (bool), `letterhead_change_fee_paise` | Billing kill-switch. **Currently `enforce: true` (live 2026-08-09)** — recording blocked without an active plan/trial/wallet; data always viewable. Signup grants a 7-day trial. ⚠️ Needs live `razorpay` keys before trials lapse (first ones **2026-08-17**) or expired doctors can't pay. Set `enforce: false` to disarm instantly. |
 | `auth` | `otp_required` (bool) | OTP second-factor kill-switch |
 | `scheduler` | `invoker_email`, `audience` | Reminder-runner auth overrides (defaults are fine) |
 | `counters` | `registration_seq` | Doctor-ID counter — never edit manually |
