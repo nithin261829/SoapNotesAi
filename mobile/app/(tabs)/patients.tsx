@@ -136,7 +136,6 @@ export default function PatientsScreen() {
         </View>
 
         <View style={styles.sortRow}>
-          <Text style={styles.sortLabel}>SORT</Text>
           <View style={styles.sortSegment}>
             {(Object.keys(SORT_LABELS) as Sort[]).map((s) => {
               const active = sort === s;
@@ -159,6 +158,19 @@ export default function PatientsScreen() {
               );
             })}
           </View>
+
+          <Pressable
+            onPress={() => setAddOpen(true)}
+            style={({ pressed }) => [
+              styles.addPill,
+              pressed && { opacity: 0.9, transform: [{ scale: 0.985 }] },
+            ]}
+            accessibilityRole="button"
+            accessibilityLabel="Add patient"
+          >
+            <Feather name="plus" size={15} color={c.textOnAccent} />
+            <Text style={styles.addPillText}>Patient</Text>
+          </Pressable>
         </View>
 
         {loading ? <ActivityIndicator color={c.accent} style={{ marginTop: 24 }} /> : null}
@@ -216,21 +228,6 @@ export default function PatientsScreen() {
           ),
         )}
       </ScrollView>
-
-      <Pressable
-        onPress={() => setAddOpen(true)}
-        style={({ pressed }) => [
-          styles.fab,
-          pressed && { opacity: 0.9, transform: [{ scale: 0.985 }] },
-        ]}
-        accessibilityRole="button"
-        accessibilityLabel="Add patient"
-      >
-        <View style={styles.fabIcon}>
-          <Feather name="plus" size={16} color={c.textOnAccent} />
-        </View>
-        <Text style={styles.fabText}>ADD PATIENT</Text>
-      </Pressable>
 
       <AddPatientModal
         open={addOpen}
@@ -566,7 +563,7 @@ function groupByLastSeen(
 const makeStyles = (c: ThemeColors) => StyleSheet.create({
   container: { flex: 1, backgroundColor: c.bg },
   headerRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: space.xs },
-  scroll: { padding: space.lg, gap: space.md, paddingBottom: 140 },
+  scroll: { padding: space.lg, gap: space.md, paddingBottom: 120 },
 
   pageTitle: {
     fontFamily: fonts.displayBold,
@@ -781,35 +778,23 @@ const makeStyles = (c: ThemeColors) => StyleSheet.create({
     textTransform: 'uppercase',
   },
 
-  fab: {
-    position: 'absolute',
-    bottom: 110, // sit above the floating tab pill
-    left: 24,
-    right: 24,
-    maxWidth: 632, // 680 column minus 24 gutters
-    alignSelf: 'center',
+  addPill: {
+    marginLeft: 'auto',
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
-    gap: space.sm,
-    backgroundColor: c.accent,
+    gap: 5,
+    paddingLeft: 11,
+    paddingRight: 14,
+    paddingVertical: 8,
     borderRadius: radii.pill,
-    paddingVertical: space.base,
-    ...shadow.card,
+    backgroundColor: c.accent,
+    ...shadow.sm,
   },
-  fabIcon: {
-    width: 22,
-    height: 22,
-    borderRadius: 11,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: 'rgba(255,255,255,0.18)',
-  },
-  fabText: {
+  addPillText: {
     fontFamily: fonts.displayBold,
     color: c.textOnAccent,
-    letterSpacing: 1.2,
     fontSize: font.size.sm,
+    letterSpacing: 0.2,
   },
 
   modalContent: { padding: space.lg, paddingTop: space.xl, gap: space.md, backgroundColor: c.bg, flexGrow: 1 },
