@@ -47,6 +47,100 @@ def _verify_scheduler_token(authorization: Optional[str]) -> None:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="invoker_not_allowed")
 
 
+@router.post("/subscriptions/sweep", include_in_schema=False)
+def sweep_subscriptions(
+    authorization: Annotated[Optional[str], Header()] = None,
+) -> dict[str, int]:
+    """Daily billing lifecycle sweep:
+      1. Flip lapsed active subscriptions + trials to `expired` (accurate state).
+      2. Push a renewal reminder to org owners 3 days before, and on, expiry.
+
+    Idempotent: reminders are stamped per period_end so they fire at most once
+    per window. Manual-renewal model — this never charges; it just nudges.
+    """
+    _verify_scheduler_token(authorization)
+
+    db = get_db()
+    now = utc_now()
+    soon = now + timedelta(days=3)
+
+    expired_count = 0
+    reminders_sent = 0
+
+    for org_snap in db.collection("organizations").stream():
+        org_id = org_snap.id
+        billing_col = db.collection("organizations").document(org_id).collection("billing")
+
+        # Owner push tokens for this org (renewal reminders go to owners).
+        owner_tokens: list[tuple[str, str]] = []
+        for u_snap in db.collection("users").where("org_id", "==", org_id).stream():
+            u = u_snap.to_dict() or {}
+            memberships = u.get("memberships") or []
+            is_owner = any(
+                isinstance(m, dict) and m.get("role") == "owner" for m in memberships
+            )
+            if is_owner and u.get("push_token"):
+                owner_tokens.append((u["push_token"], u.get("push_token_type") or "expo"))
+
+        for sub_snap in billing_col.stream():
+            doc_id = sub_snap.id
+            if doc_id != "subscription" and not doc_id.startswith("subscription_"):
+                continue
+            data = sub_snap.to_dict() or {}
+            try:
+                sub = SubscriptionDoc.model_validate(data)
+            except Exception:
+                continue
+
+            # ── Trial expiry (org-level doc) ──
+            if (
+                doc_id == "subscription"
+                and sub.status == "trial"
+                and sub.trial_ends_at
+                and sub.trial_ends_at <= now
+            ):
+                sub_snap.reference.update({"status": "expired", "updated_at": now.isoformat()})
+                expired_count += 1
+                continue
+
+            # ── Paid clinic subscription lifecycle ──
+            if sub.status == "active" and sub.current_period_end:
+                if sub.current_period_end <= now:
+                    sub_snap.reference.update(
+                        {"status": "expired", "updated_at": now.isoformat()}
+                    )
+                    expired_count += 1
+                    # notify on-expiry (once per period)
+                    stamp = f"expired:{sub.current_period_end.date().isoformat()}"
+                    if data.get("renewal_reminded_for") != stamp and owner_tokens:
+                        for tok, ttype in owner_tokens:
+                            if send_push(
+                                tok, ttype,
+                                "Your plan has expired",
+                                "Renew now to keep creating notes for this clinic.",
+                                data={"screen": "payments"},
+                            ):
+                                reminders_sent += 1
+                        sub_snap.reference.update({"renewal_reminded_for": stamp})
+                elif now < sub.current_period_end <= soon:
+                    # renewal reminder, 3-day window, once per period
+                    stamp = f"pre:{sub.current_period_end.date().isoformat()}"
+                    if data.get("renewal_reminded_for") != stamp and owner_tokens:
+                        days = max(1, (sub.current_period_end - now).days)
+                        for tok, ttype in owner_tokens:
+                            if send_push(
+                                tok, ttype,
+                                f"Plan renews in {days} day{'s' if days != 1 else ''}",
+                                "Renew to avoid interruption to note generation.",
+                                data={"screen": "payments"},
+                            ):
+                                reminders_sent += 1
+                        sub_snap.reference.update({"renewal_reminded_for": stamp})
+
+    logger.info("subscription_sweep expired=%d reminders=%d", expired_count, reminders_sent)
+    return {"expired": expired_count, "reminders_sent": reminders_sent}
+
+
 @router.post("/reminders/run", include_in_schema=False)
 def run_reminders(
     authorization: Annotated[Optional[str], Header()] = None,
