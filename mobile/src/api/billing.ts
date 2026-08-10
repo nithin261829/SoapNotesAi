@@ -145,3 +145,17 @@ export function formatInr(paise: number): string {
     maximumFractionDigits: rupees % 1 === 0 ? 0 : 2,
   })}`;
 }
+
+export interface BillingStatus {
+  state: 'active' | 'trial' | 'payg' | 'expired' | 'no_plan';
+  can_create: boolean;
+  enforced: boolean;
+  trial_days_left: number | null;
+  tier: string;
+  wallet_balance_paise: number;
+}
+
+export async function getBillingStatus(idToken: string): Promise<BillingStatus> {
+  const res = await fetch(`${BASE_URL}/billing/status`, { headers: headers(idToken) });
+  return jsonOrThrow<BillingStatus>(res);
+}

@@ -32,7 +32,7 @@ class Settings(BaseSettings):
     max_upload_bytes: int = Field(100 * 1024 * 1024, alias="MAX_UPLOAD_BYTES")
     # Gemini 2.5 reliably handles ~9.5 minutes of audio per call. 9 min keeps
     # margin while covering typical clinical dictations.
-    max_audio_duration_ms: int = Field(8 * 60 * 1000, alias="MAX_AUDIO_DURATION_MS")
+    max_audio_duration_ms: int = Field(5 * 60 * 1000, alias="MAX_AUDIO_DURATION_MS")
 
     # Which AudioToSoap provider to use.
     #   - "vertex_gemini" (default): real Gemini call, billed

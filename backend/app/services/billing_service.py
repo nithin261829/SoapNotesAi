@@ -65,6 +65,58 @@ def _billing_doc(db, org_id: str, name: str):
     )
 
 
+def note_access_status(org_id: str, clinic_id: str) -> dict:
+    """Non-raising billing status for the UI: can this clinic create notes,
+    what state is it in, and how many trial days remain. Drives the paywall.
+
+    `can_create` is only ever False when enforcement is ON — while the
+    kill-switch is off, everyone can create (state is still reported).
+    """
+    from math import ceil
+
+    db = get_db()
+    now = utc_now()
+    enforce = _enforcement_on()
+
+    sub_snap = _billing_doc(db, org_id, f"subscription_{clinic_id}").get()
+    sub = SubscriptionDoc.model_validate(sub_snap.to_dict()) if sub_snap.exists else SubscriptionDoc()
+    org_snap = _billing_doc(db, org_id, "subscription").get()
+    org_sub = SubscriptionDoc.model_validate(org_snap.to_dict()) if org_snap.exists else SubscriptionDoc()
+
+    active_paid = sub.tier in ("standard", "premium") and sub.status == "active" and (
+        sub.current_period_end is None or sub.current_period_end > now
+    )
+    in_trial = bool(org_sub.status == "trial" and org_sub.trial_ends_at and org_sub.trial_ends_at > now)
+    trial_days_left = (
+        ceil((org_sub.trial_ends_at - now).total_seconds() / 86400) if in_trial else None
+    )
+
+    wallet_snap = _billing_doc(db, org_id, "wallet").get()
+    wallet = WalletDoc.model_validate(wallet_snap.to_dict()) if wallet_snap.exists else WalletDoc()
+    has_wallet = wallet.balance_paise >= NOTE_CHARGE_PAISE
+
+    if active_paid:
+        state = "active"
+    elif in_trial:
+        state = "trial"
+    elif has_wallet:
+        state = "payg"
+    elif org_sub.joining_fee_paid or org_sub.trial_ends_at:
+        state = "expired"  # trial started at some point, now over, nothing paid
+    else:
+        state = "no_plan"  # never onboarded (joining fee not paid)
+
+    can_create = (not enforce) or state in ("active", "trial", "payg")
+    return {
+        "state": state,
+        "can_create": can_create,
+        "enforced": enforce,
+        "trial_days_left": trial_days_left,
+        "tier": sub.tier,
+        "wallet_balance_paise": wallet.balance_paise,
+    }
+
+
 def check_note_allowance(org_id: str, clinic_id: str) -> NoteAllowance:
     """Decide how this note is paid for; raise 402/429 if not allowed.
 

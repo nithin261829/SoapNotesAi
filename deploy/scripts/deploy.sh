@@ -39,7 +39,7 @@ VERTEX_LOCATION: us-central1
 VERTEX_MODEL: gemini-2.5-flash
 AUDIO_TO_SOAP_PROVIDER: vertex_gemini
 MAX_UPLOAD_BYTES: "104857600"
-MAX_AUDIO_DURATION_MS: "480000"
+MAX_AUDIO_DURATION_MS: "300000"
 CORS_ALLOW_ORIGINS: "http://localhost:8081,http://localhost:19006,https://soapnotesai-dev-f7e79.web.app,https://soapnotesai-dev-f7e79.firebaseapp.com,https://soapnotesai.web.app,https://soapnotesai.web.app"
 GRPC_DNS_RESOLVER: native
 EOF

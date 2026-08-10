@@ -15,6 +15,7 @@ import {
   View,
 } from 'react-native';
 
+import { getBillingStatus, type BillingStatus } from '@/api/billing';
 import { listPatients, patchRecordingSoap, type PatientEntry } from '@/api/patients';
 import {
   downloadRecordingPdf,
@@ -82,6 +83,11 @@ export default function RecordScreen() {
   const [chooseOpen, setChooseOpen] = useState(false);
   const [pickerOpen, setPickerOpen] = useState(false);
   const [patientsError, setPatientsError] = useState<string | null>(null);
+  const [billing, setBilling] = useState<BillingStatus | null>(null);
+
+  // Paywall: block new notes when the trial has ended and nothing is paid.
+  // Only hard-blocks when enforcement is on server-side (can_create=false).
+  const blocked = billing != null && !billing.can_create;
 
   const reloadPatients = useCallback(async () => {
     try {
@@ -92,6 +98,19 @@ export default function RecordScreen() {
       setPatientsError(e instanceof Error ? e.message : 'Failed to load patients');
     }
   }, [getIdToken]);
+
+  const reloadBilling = useCallback(async () => {
+    try {
+      const token = await getIdToken();
+      setBilling(await getBillingStatus(token));
+    } catch {
+      /* status is best-effort; upload still enforces server-side */
+    }
+  }, [getIdToken]);
+
+  useEffect(() => {
+    void reloadBilling();
+  }, [reloadBilling]);
 
   useEffect(() => {
     void reloadPatients();
@@ -198,6 +217,12 @@ export default function RecordScreen() {
     }
     if (state.status === 'paused') {
       void resume();
+      return;
+    }
+    // Paywall: if the trial ended and nothing is paid, send them to Payments
+    // instead of letting them record and fail at upload.
+    if (blocked && state.status === 'idle') {
+      router.push('/payments' as never);
       return;
     }
     if (
@@ -420,6 +445,36 @@ export default function RecordScreen() {
         <BrandLogo height={26} />
       </View>
       {state.status === 'idle' && processing.phase === 'idle' ? <GreetingBanner /> : null}
+
+      {/* Paywall banner — trial ended, nothing paid, enforcement on */}
+      {blocked && state.status === 'idle' && processing.phase === 'idle' ? (
+        <Pressable
+          onPress={() => router.push('/payments' as never)}
+          style={({ pressed }) => [styles.paywallCard, { opacity: pressed ? 0.9 : 1 }]}
+        >
+          <Feather name="lock" size={18} color={c.accent} />
+          <View style={{ flex: 1 }}>
+            <Text style={styles.paywallTitle}>
+              {billing?.state === 'no_plan'
+                ? 'Activate your account to start'
+                : 'Your free trial has ended'}
+            </Text>
+            <Text style={styles.paywallBody}>
+              {billing?.state === 'no_plan'
+                ? 'Pay the ₹500 joining fee (includes a 7-day trial) to create notes.'
+                : 'Pay to continue creating notes. Your existing patients and notes stay accessible.'}
+            </Text>
+          </View>
+          <Text style={styles.paywallCta}>PAY →</Text>
+        </Pressable>
+      ) : billing?.state === 'trial' && billing.trial_days_left != null ? (
+        <View style={styles.trialPill}>
+          <Feather name="clock" size={13} color={c.accent} />
+          <Text style={styles.trialPillText}>
+            Free trial · {billing.trial_days_left} day{billing.trial_days_left === 1 ? '' : 's'} left
+          </Text>
+        </View>
+      ) : null}
       {/* In-content top row — back button (when needed) + REC pill (when active) */}
       {(mode !== 'idle' || isRec || isPaused) ? (
         <View style={styles.topRow}>
@@ -944,6 +999,32 @@ const makeStyles = (c: ThemeColors) => StyleSheet.create({
     letterSpacing: 1,
     textTransform: 'uppercase',
   },
+  paywallCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: space.md,
+    backgroundColor: c.accentSoft,
+    borderWidth: 1,
+    borderColor: c.accentDim,
+    borderRadius: radii.lg,
+    padding: space.lg,
+  },
+  paywallTitle: { fontFamily: fonts.displayBold, fontSize: font.size.base, color: c.text },
+  paywallBody: { fontFamily: fonts.display, fontSize: font.size.xs, color: c.textMuted, marginTop: 2, lineHeight: 16 },
+  paywallCta: { fontFamily: fonts.displayBold, fontSize: font.size.sm, color: c.accent, letterSpacing: 0.8 },
+  trialPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    alignSelf: 'flex-start',
+    backgroundColor: c.accentSoft,
+    borderWidth: 1,
+    borderColor: c.accentDim,
+    borderRadius: radii.pill,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+  },
+  trialPillText: { fontFamily: fonts.displaySemi, fontSize: font.size.xs, color: c.accent },
   heroDisplay: { alignItems: 'flex-start', alignSelf: 'stretch', paddingHorizontal: 4 },
   heroDisplayLine: {
     fontFamily: fonts.displayBold,

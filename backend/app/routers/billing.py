@@ -24,7 +24,7 @@ from typing import Annotated, Optional
 from fastapi import APIRouter, Header, HTTPException, Request, status
 from pydantic import BaseModel, Field
 
-from app.auth.deps import OwnerDep
+from app.auth.deps import OwnerDep, TenantUserDep
 from app.models.billing import (
     PaymentOrder,
     PaymentPurpose,
@@ -216,6 +216,15 @@ def _effective_subscription(db, org_id: str, clinic_id: str | None) -> Subscript
 
 
 # ─── Endpoints ─────────────────────────────────────────────────────
+
+
+@router.get("/status")
+def billing_status(user: TenantUserDep) -> dict:
+    """Billing/paywall status for the caller's active clinic — drives the
+    Record-tab paywall. Any provisioned member can read it."""
+    from app.services.billing_service import note_access_status
+
+    return note_access_status(user.org_id, user.active_clinic_id)
 
 
 @router.get("/plans")
