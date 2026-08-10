@@ -266,20 +266,17 @@ export default function RecordScreen() {
     setMode('existing');
     setPickerOpen(false);
     setSelectedCaseId(undefined);
-    // Fetch open cases → if any, ask new-case-vs-follow-up; else start fresh.
+    setPatientCases([]);
+    // Always show the New-case / Follow-up chooser for an existing patient.
+    // Load their open cases in the background to populate the follow-up list.
+    setCaseChooserOpen(true);
     void (async () => {
       try {
         const token = await getIdToken();
-        const cases = await listCases(token, p.id);
-        if (cases.length > 0) {
-          setPatientCases(cases);
-          setCaseChooserOpen(true);
-          return;
-        }
+        setPatientCases(await listCases(token, p.id));
       } catch {
-        /* if cases can't load, just start a new case */
+        /* follow-up list stays empty; "new case" always works */
       }
-      void start();
     })();
   };
 
@@ -954,6 +951,12 @@ export default function RecordScreen() {
             Or follow up an open case
           </Text>
           <ScrollView style={{ flex: 1 }} keyboardShouldPersistTaps="handled">
+            {patientCases.length === 0 ? (
+              <Text style={[styles.disclaimer, { textAlign: 'left', paddingTop: 0 }]}>
+                No open cases yet for this patient. Start a new case above — future
+                visits can then follow up on it.
+              </Text>
+            ) : null}
             {patientCases.map((cs) => (
               <Pressable
                 key={cs.id}
