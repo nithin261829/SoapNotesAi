@@ -169,6 +169,7 @@ export default function PatientsScreen() {
             accessibilityLabel="Add patient"
           >
             <Feather name="plus" size={15} color={c.textOnAccent} />
+            <Feather name="user" size={15} color={c.textOnAccent} />
             <Text style={styles.addPillText}>Patient</Text>
           </Pressable>
         </View>
