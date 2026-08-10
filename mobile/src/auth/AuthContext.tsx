@@ -141,7 +141,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   );
 
   const signOut = useCallback(async () => {
-    setProfile(null);
+    // Do NOT clear the profile here. Clearing it while `user` is still set
+    // makes `needsProvisioning` momentarily true (user && profile === null),
+    // which flashes the /setup "create organization" screen before sign-out
+    // completes. Let onAuthStateChanged(null) clear both together so the gate
+    // goes straight to /sign-in.
     await firebaseSignOut(firebaseAuth);
   }, []);
 
