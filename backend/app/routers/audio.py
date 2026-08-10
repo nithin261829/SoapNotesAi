@@ -123,6 +123,10 @@ async def upload_audio(
     ] = None,
     client_duration_ms: Annotated[int | None, Form()] = None,
     encounter_date: Annotated[str | None, Form()] = None,
+    case_id: Annotated[
+        str | None,
+        Form(description="Existing case to follow up (continuation sheet). Omit to start a new case."),
+    ] = None,
     settings: Annotated[Settings, Depends(get_settings)] = None,  # type: ignore[assignment]
     audio_to_soap: Annotated[AudioToSoap, Depends(_get_audio_to_soap)] = None,  # type: ignore[assignment]
 ) -> AudioUploadResponse:
@@ -288,6 +292,39 @@ async def upload_audio(
 
         patient_ref = patients_col.document(patient_id)
         now = utc_now()
+
+        # Resolve the case. Follow-up → use the given open case. Otherwise start
+        # a new case titled from the chief complaint. The first recording in a
+        # case prints on letterhead; later ones on continuation sheets.
+        cases_col = patient_ref.collection("cases")
+        resolved_case_id = case_id
+        if case_id:
+            case_snap = cases_col.document(case_id).get()
+            if not case_snap.exists:
+                raise HTTPException(
+                    status_code=status.HTTP_404_NOT_FOUND, detail="case_not_found"
+                )
+        else:
+            from app.models.case import Case as CaseModel
+
+            title = (result.soap.subjective.chief_complaint or "").strip() if result.soap.subjective else ""
+            if not title:
+                title = f"Case {now.strftime('%b %d, %Y')}"
+            resolved_case_id = re.sub(r"[^a-z0-9]+", "-", title.lower()).strip("-")[:24] or "case"
+            resolved_case_id = f"{resolved_case_id}-{secrets.token_hex(3)}"
+            cases_col.document(resolved_case_id).set(
+                CaseModel(
+                    org_id=user.org_id,
+                    clinic_id=user.active_clinic_id,
+                    patient_id=patient_id,
+                    title=title[:160],
+                    created_by_uid=user.uid,
+                    opened_at=now,
+                    created_at=now,
+                    updated_at=now,
+                ).model_dump(mode="json")
+            )
+
         transcript_doc = TranscriptDoc(text=result.transcript, language=result.language)
         est_cost = _estimate_cost_usd(result.prompt_tokens, result.output_tokens)
         # Provenance stays server-side: clients can read the Recording doc via
@@ -300,6 +337,7 @@ async def upload_audio(
             org_id=user.org_id,
             clinic_id=user.active_clinic_id,
             patient_id=patient_id,
+            case_id=resolved_case_id,
             audio_storage_path=gs_uri,
             mime_type=content_type,
             duration_seconds=(client_duration_ms / 1000.0) if client_duration_ms else None,
@@ -343,6 +381,13 @@ async def upload_audio(
                 "last_encounter_at": now,
                 "updated_at": now,
                 "recording_count": Increment(1),
+            }
+        )
+        cases_col.document(resolved_case_id).update(
+            {
+                "encounter_count": Increment(1),
+                "last_encounter_at": now,
+                "updated_at": now,
             }
         )
 

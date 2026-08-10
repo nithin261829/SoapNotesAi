@@ -51,6 +51,7 @@ class Recording(FirestoreModel):
     org_id: str
     clinic_id: str
     patient_id: str
+    case_id: Optional[str] = None  # groups follow-ups of one complaint/episode
     audio_storage_path: str           # gs:// path
     mime_type: str = "audio/m4a"
     duration_seconds: Optional[float] = None

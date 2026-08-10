@@ -174,32 +174,53 @@ def render_pdf(recording_id: str, patient_id: str, user: TenantUserDep) -> Strea
     clinic_data = clinic_snap.to_dict() if clinic_snap.exists else {}
     letterhead_ctx = letterhead_context(user.org_id, user.active_clinic_id, clinic_data)
 
-    # Follow-up sheet engine: the patient's FIRST encounter prints on the
-    # branded primary letterhead; every later encounter prints on a plain
-    # continuation sheet with a subtle security watermark (saves letterhead
-    # stock and marks the page as part of an existing case file).
+    # Follow-up sheet engine, keyed on the CASE: the FIRST encounter of a case
+    # prints on the branded primary letterhead; follow-up encounters in the
+    # same case print on a plain continuation sheet with a subtle security
+    # watermark — only the new note, not the whole history. Legacy recordings
+    # with no case_id fall back to per-patient ordering.
     recs_col = (
         _patient_ref(db, user.org_id, user.active_clinic_id, patient_id)
         .collection("recordings")
     )
-    first_snap = next(iter(recs_col.order_by("created_at").limit(1).stream()), None)
-    is_continuation = bool(first_snap and first_snap.id != recording_id)
-    continuation_of: Optional[str] = None
-    if is_continuation:
-        prev_snap = next(
-            iter(
-                recs_col.where("created_at", "<", rec.created_at.isoformat())
-                .order_by("created_at", direction="DESCENDING")
-                .limit(1)
-                .stream()
-            ),
-            None,
-        )
-        if prev_snap:
-            prev = prev_snap.to_dict() or {}
-            continuation_of = ((prev.get("soap") or {}).get("patient") or {}).get(
-                "encounter_date"
-            ) or (prev.get("created_at") or "")[:10]
+    if rec.case_id:
+        case_recs = list(recs_col.where("case_id", "==", rec.case_id).stream())
+        case_recs.sort(key=lambda s: (s.to_dict() or {}).get("created_at") or "")
+        first_id = case_recs[0].id if case_recs else recording_id
+        is_continuation = first_id != recording_id
+        continuation_of = None
+        if is_continuation:
+            prev = next(
+                (
+                    s.to_dict()
+                    for s in reversed(case_recs)
+                    if ((s.to_dict() or {}).get("created_at") or "") < rec.created_at.isoformat()
+                ),
+                None,
+            )
+            if prev:
+                continuation_of = ((prev.get("soap") or {}).get("patient") or {}).get(
+                    "encounter_date"
+                ) or (prev.get("created_at") or "")[:10]
+    else:
+        first_snap = next(iter(recs_col.order_by("created_at").limit(1).stream()), None)
+        is_continuation = bool(first_snap and first_snap.id != recording_id)
+        continuation_of = None
+        if is_continuation:
+            prev_snap = next(
+                iter(
+                    recs_col.where("created_at", "<", rec.created_at.isoformat())
+                    .order_by("created_at", direction="DESCENDING")
+                    .limit(1)
+                    .stream()
+                ),
+                None,
+            )
+            if prev_snap:
+                prev = prev_snap.to_dict() or {}
+                continuation_of = ((prev.get("soap") or {}).get("patient") or {}).get(
+                    "encounter_date"
+                ) or (prev.get("created_at") or "")[:10]
 
     # Doctor profile for the signature block.
     user_snap = db.collection("users").document(user.uid).get()

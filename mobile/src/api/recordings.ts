@@ -199,6 +199,8 @@ export interface UploadParams {
   fileUri: string;
   /** Omit for "new patient" mode — the backend will auto-create from the audio. */
   patientId?: string;
+  /** Existing case to follow up (continuation sheet). Omit to start a new case. */
+  caseId?: string;
   durationMs?: number | null;
   encounterDate?: string; // ISO date (YYYY-MM-DD)
   idToken?: string;
@@ -233,6 +235,7 @@ export async function uploadAudio(params: UploadParams): Promise<AudioUploadResp
     if (params.durationMs != null)
       fd.append('client_duration_ms', String(Math.round(params.durationMs)));
     if (params.encounterDate) fd.append('encounter_date', params.encounterDate);
+    if (params.caseId) fd.append('case_id', params.caseId);
     params.onProgress?.(0.5);
     const res = await fetch(url, {
       method: 'POST',
@@ -260,6 +263,7 @@ export async function uploadAudio(params: UploadParams): Promise<AudioUploadResp
   if (params.patientId) parameters.patient_id = params.patientId;
   if (params.durationMs != null) parameters.client_duration_ms = String(Math.round(params.durationMs));
   if (params.encounterDate) parameters.encounter_date = params.encounterDate;
+  if (params.caseId) parameters.case_id = params.caseId;
 
   const task = FileSystem.createUploadTask(
     url,

@@ -14,6 +14,7 @@ from app.routers import accounts as accounts_router
 from app.routers import audio as audio_router
 from app.routers import auth_otp as auth_otp_router
 from app.routers import billing as billing_router
+from app.routers import cases as cases_router
 from app.routers import clinics as clinics_router
 from app.routers import documents as documents_router
 from app.routers import export as export_router
@@ -121,6 +122,7 @@ def create_app() -> FastAPI:
     app.include_router(export_router.router, prefix=API_PREFIX)
     app.include_router(verification_router.router, prefix=API_PREFIX)
     app.include_router(clinics_router.router, prefix=API_PREFIX)
+    app.include_router(cases_router.router, prefix=API_PREFIX)
     app.include_router(documents_router.router, prefix=API_PREFIX)
 
     return app

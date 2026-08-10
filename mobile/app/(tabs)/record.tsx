@@ -16,6 +16,7 @@ import {
 } from 'react-native';
 
 import { getBillingStatus, type BillingStatus } from '@/api/billing';
+import { listCases, type CaseEntry } from '@/api/cases';
 import { listPatients, patchRecordingSoap, type PatientEntry } from '@/api/patients';
 import {
   downloadRecordingPdf,
@@ -84,6 +85,11 @@ export default function RecordScreen() {
   const [pickerOpen, setPickerOpen] = useState(false);
   const [patientsError, setPatientsError] = useState<string | null>(null);
   const [billing, setBilling] = useState<BillingStatus | null>(null);
+  // Case selection: after picking an existing patient, choose a new case or
+  // follow up an open one. selectedCaseId is passed to the upload.
+  const [caseChooserOpen, setCaseChooserOpen] = useState(false);
+  const [patientCases, setPatientCases] = useState<CaseEntry[]>([]);
+  const [selectedCaseId, setSelectedCaseId] = useState<string | undefined>(undefined);
 
   // Paywall: block new notes when the trial has ended and nothing is paid.
   // Only hard-blocks when enforcement is on server-side (can_create=false).
@@ -259,6 +265,33 @@ export default function RecordScreen() {
     setSelectedPatient(p);
     setMode('existing');
     setPickerOpen(false);
+    setSelectedCaseId(undefined);
+    // Fetch open cases → if any, ask new-case-vs-follow-up; else start fresh.
+    void (async () => {
+      try {
+        const token = await getIdToken();
+        const cases = await listCases(token, p.id);
+        if (cases.length > 0) {
+          setPatientCases(cases);
+          setCaseChooserOpen(true);
+          return;
+        }
+      } catch {
+        /* if cases can't load, just start a new case */
+      }
+      void start();
+    })();
+  };
+
+  const chooseNewCase = () => {
+    setSelectedCaseId(undefined);
+    setCaseChooserOpen(false);
+    void start();
+  };
+
+  const chooseFollowUp = (caseId: string) => {
+    setSelectedCaseId(caseId);
+    setCaseChooserOpen(false);
     void start();
   };
 
@@ -323,6 +356,7 @@ export default function RecordScreen() {
         fileUri: state.fileUri,
         // In "new" mode we omit patient_id; backend auto-creates from SOAP demographics.
         patientId: selectedPatient?.id,
+        caseId: selectedCaseId,
         durationMs: state.finalDurationMs,
         idToken,
         onProgress: (fraction) => {
@@ -358,6 +392,7 @@ export default function RecordScreen() {
     setShareError(null);
     setMode('idle');
     setSelectedPatient(null);
+    setSelectedCaseId(undefined);
     void reset();
   };
 
@@ -861,6 +896,64 @@ export default function RecordScreen() {
         </View>
       </Modal>
 
+      {/* Case chooser — new case vs follow-up an existing open case */}
+      <Modal
+        visible={caseChooserOpen}
+        animationType="slide"
+        presentationStyle="pageSheet"
+        onRequestClose={() => setCaseChooserOpen(false)}
+      >
+        <View style={{ flex: 1, backgroundColor: c.bg, padding: space.lg }}>
+          <View style={styles.tagPill}>
+            <Text style={styles.tagPillText}>
+              {selectedPatient?.patient.name ?? 'Patient'}
+            </Text>
+          </View>
+          <Text style={[styles.heroEyebrow, { marginTop: 8, marginBottom: 4 }]}>
+            New case or follow-up?
+          </Text>
+          <Text style={[styles.disclaimer, { textAlign: 'left', paddingTop: 0, marginBottom: 12 }]}>
+            A new case prints on the full letterhead. A follow-up attaches to an
+            existing case and prints a continuation sheet.
+          </Text>
+
+          <Pressable
+            onPress={chooseNewCase}
+            style={({ pressed }) => [styles.newCaseRow, { opacity: pressed ? 0.85 : 1 }]}
+          >
+            <Feather name="plus-circle" size={18} color={c.textOnAccent} />
+            <Text style={styles.newCaseText}>START A NEW CASE</Text>
+          </Pressable>
+
+          <Text style={[styles.heroEyebrow, { marginTop: 18, marginBottom: 8 }]}>
+            Or follow up an open case
+          </Text>
+          <ScrollView style={{ flex: 1 }} keyboardShouldPersistTaps="handled">
+            {patientCases.map((cs) => (
+              <Pressable
+                key={cs.id}
+                onPress={() => chooseFollowUp(cs.id)}
+                style={({ pressed }) => [styles.patientRow, { opacity: pressed ? 0.85 : 1 }]}
+              >
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.patientRowName}>{cs.case.title}</Text>
+                  <Text style={styles.patientRowMeta}>
+                    {cs.case.encounter_count} encounter{cs.case.encounter_count === 1 ? '' : 's'}
+                    {cs.case.last_encounter_at
+                      ? ` · last ${new Date(cs.case.last_encounter_at).toLocaleDateString()}`
+                      : ''}
+                  </Text>
+                </View>
+                <Feather name="chevron-right" size={18} color={c.textSubtle} />
+              </Pressable>
+            ))}
+          </ScrollView>
+          <Pressable onPress={() => setCaseChooserOpen(false)} style={styles.resetBtn}>
+            <Text style={styles.resetLink}>CANCEL</Text>
+          </Pressable>
+        </View>
+      </Modal>
+
       <Text style={styles.disclaimer}>
         Draft assistive tool · review and sign every note before clinical use.
       </Text>
@@ -998,6 +1091,21 @@ const makeStyles = (c: ThemeColors) => StyleSheet.create({
     color: c.textMuted,
     letterSpacing: 1,
     textTransform: 'uppercase',
+  },
+  newCaseRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: space.sm,
+    backgroundColor: c.accent,
+    borderRadius: radii.md,
+    paddingVertical: space.md + 2,
+  },
+  newCaseText: {
+    fontFamily: fonts.displayBold,
+    color: c.textOnAccent,
+    fontSize: font.size.sm,
+    letterSpacing: 1,
   },
   paywallCard: {
     flexDirection: 'row',
