@@ -138,7 +138,9 @@ export default function SignInScreen() {
           <Text style={styles.headerTitle}>
             {mode === 'signin' ? 'Sign in to your account' : 'Create your account'}
           </Text>
-          <Text style={styles.headerSub}>Voice → SOAP notes for clinicians</Text>
+          {mode === 'signin' ? (
+            <Text style={styles.headerSub}>Voice → SOAP notes for clinicians</Text>
+          ) : null}
         </View>
 
         {method === 'phone' ? (
@@ -392,22 +394,25 @@ export default function SignInScreen() {
         </View>
         ) : null}
 
-        {/* Feature highlights — small boxes */}
-        <View style={styles.featureRow}>
-          {(
-            [
-              { icon: 'mic', label: 'Voice → SOAP in seconds' },
-              { icon: 'lock', label: 'Encrypted patient data' },
-              { icon: 'check-circle', label: 'Verified letterheads' },
-              { icon: 'bell', label: 'Follow-up reminders' },
-            ] as const
-          ).map((f) => (
-            <View key={f.icon} style={styles.featureBox}>
-              <Feather name={f.icon} size={13} color={c.accent} />
-              <Text style={styles.featureText}>{f.label}</Text>
-            </View>
-          ))}
-        </View>
+        {/* Feature highlights — only on sign-up, where selling matters.
+            The daily sign-in stays focused: brand → form → done. */}
+        {method === 'email' && mode === 'signup' ? (
+          <View style={styles.featureRow}>
+            {(
+              [
+                { icon: 'mic', label: 'Voice → SOAP in seconds' },
+                { icon: 'lock', label: 'Encrypted patient data' },
+                { icon: 'check-circle', label: 'Verified letterheads' },
+                { icon: 'bell', label: 'Follow-up reminders' },
+              ] as const
+            ).map((f) => (
+              <View key={f.icon} style={styles.featureBox}>
+                <Feather name={f.icon} size={13} color={c.accent} />
+                <Text style={styles.featureText}>{f.label}</Text>
+              </View>
+            ))}
+          </View>
+        ) : null}
 
         <Text style={styles.disclaimer}>
           Draft assistive tool · review and sign every note before clinical use.
@@ -480,7 +485,7 @@ const makeStyles = (c: ThemeColors) => StyleSheet.create({
   },
   wordmark: {
     fontFamily: fonts.brand,
-    fontSize: 34,
+    fontSize: 29,
     color: c.text,
     letterSpacing: -0.5,
   },
