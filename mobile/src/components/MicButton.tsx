@@ -98,9 +98,12 @@ export function MicButton({ status, onPress, disabled }: Props) {
           {isBusy ? (
             <ActivityIndicator color="#FFFFFF" size="large" />
           ) : (
-            <Feather name={ICONS[status]} size={64} color={glyphColor} />
+            <Feather name={ICONS[status]} size={78} color={glyphColor} />
           )}
         </Pressable>
+        {/* Idle "record light" — a subtle red cue so it instantly reads as
+            "this records," even though the resting button is brand green. */}
+        {isIdle ? <View pointerEvents="none" style={styles.recDot} /> : null}
       </View>
       <Text style={styles.label}>{LABELS[status].toUpperCase()}</Text>
     </View>
@@ -130,6 +133,17 @@ const makeStyles = (c: ThemeColors) =>
       shadowOpacity: 0.18,
       shadowRadius: 18,
       elevation: 8,
+    },
+    recDot: {
+      position: 'absolute',
+      top: 22,
+      right: 22,
+      width: 22,
+      height: 22,
+      borderRadius: 11,
+      backgroundColor: c.recording,
+      borderWidth: 3,
+      borderColor: c.bg,
     },
     label: {
       fontFamily: fonts.displayBold,
