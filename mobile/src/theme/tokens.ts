@@ -158,20 +158,35 @@ export const font = {
   },
 } as const;
 
+// Layered, soft shadows — premium depth instead of flat hairline borders.
+// Tuned for a calm clinical surface: diffuse, low-opacity, cool-tinted.
 export const shadow = {
-  card: {
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.06,
-    shadowRadius: 4,
-    elevation: 2,
+  // subtle lift for list rows / chips
+  sm: {
+    shadowColor: '#1c2b3a',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 6,
+    elevation: 1,
   },
+  // standard card
+  card: {
+    shadowColor: '#1c2b3a',
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.08,
+    shadowRadius: 16,
+    elevation: 3,
+  },
+  // elevated / floating (modals, hero cards, primary CTA)
   raised: {
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.10,
-    shadowRadius: 10,
-    elevation: 4,
+    shadowColor: '#1c2b3a',
+    shadowOffset: { width: 0, height: 14 },
+    shadowOpacity: 0.14,
+    shadowRadius: 28,
+    elevation: 8,
   },
 } as const;
+
+// Radii additions for a softer, more modern feel.
+export const radiusXl2 = 24;
 

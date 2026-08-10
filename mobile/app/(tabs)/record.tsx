@@ -38,7 +38,7 @@ import { setRecordingActive, setRecordingDiscardHandler } from '@/recording/reco
 import { useRecorder } from '@/recording/useRecorder';
 import { useStyles, useThemeColors } from '@/theme/ThemeContext';
 import { fonts } from '@/theme/fonts';
-import { font, radii, space, type ThemeColors } from '@/theme/tokens';
+import { font, radii, radiusXl2, shadow, space, type ThemeColors } from '@/theme/tokens';
 import type { SoapNote } from '@/types/soap';
 
 type ProcessingPhase = 'idle' | 'uploading' | 'analyzing' | 'done' | 'failed';
@@ -485,7 +485,10 @@ export default function RecordScreen() {
       {blocked && state.status === 'idle' && processing.phase === 'idle' ? (
         <Pressable
           onPress={() => router.push('/payments' as never)}
-          style={({ pressed }) => [styles.paywallCard, { opacity: pressed ? 0.9 : 1 }]}
+          style={({ pressed }) => [
+            styles.paywallCard,
+            pressed && { opacity: 0.9, transform: [{ scale: 0.985 }] },
+          ]}
         >
           <Feather name="lock" size={18} color={c.accent} />
           <View style={{ flex: 1 }}>
@@ -517,7 +520,10 @@ export default function RecordScreen() {
             <Pressable
               onPress={onBackPress}
               hitSlop={12}
-              style={({ pressed }) => [styles.inlineBackBtn, { opacity: pressed ? 0.5 : 1 }]}
+              style={({ pressed }) => [
+                styles.inlineBackBtn,
+                pressed && { opacity: 0.5, transform: [{ scale: 0.985 }] },
+              ]}
               accessibilityRole="button"
               accessibilityLabel="Back"
             >
@@ -592,6 +598,7 @@ export default function RecordScreen() {
               style={({ pressed }) => [
                 styles.restartBtn,
                 { opacity: state.status === 'confirming' ? 0.6 : pressed ? 0.7 : 1 },
+                pressed && { transform: [{ scale: 0.985 }] },
               ]}
             >
               <Text style={styles.restartBtnLabel}>↺ RESTART</Text>
@@ -604,6 +611,7 @@ export default function RecordScreen() {
               style={({ pressed }) => [
                 styles.confirmBtn,
                 { opacity: state.status === 'confirming' ? 0.6 : pressed ? 0.85 : 1 },
+                pressed && { transform: [{ scale: 0.985 }] },
               ]}
             >
               <Text style={styles.confirmBtnLabel}>CONFIRM →</Text>
@@ -655,7 +663,10 @@ export default function RecordScreen() {
             {processing.phase === 'idle' ? (
               <Pressable
                 onPress={() => void onStartProcessing()}
-                style={({ pressed }) => [styles.primaryBtn, { opacity: pressed ? 0.85 : 1 }]}
+                style={({ pressed }) => [
+                  styles.primaryBtn,
+                  pressed && { opacity: 0.9, transform: [{ scale: 0.985 }] },
+                ]}
                 accessibilityRole="button"
                 accessibilityLabel="Send for processing"
               >
@@ -690,7 +701,10 @@ export default function RecordScreen() {
               {processing.phase === 'failed' ? (
                 <Pressable
                   onPress={() => void onStartProcessing()}
-                  style={({ pressed }) => [styles.secondaryBtn, { opacity: pressed ? 0.75 : 1 }]}
+                  style={({ pressed }) => [
+                    styles.secondaryBtn,
+                    pressed && { opacity: 0.9, transform: [{ scale: 0.985 }] },
+                  ]}
                   accessibilityRole="button"
                 >
                   <Text style={styles.secondaryBtnLabel}>RETRY</Text>
@@ -733,7 +747,8 @@ export default function RecordScreen() {
                     disabled={savePhase === 'saving'}
                     style={({ pressed }) => [
                       styles.primaryBtn,
-                      { opacity: savePhase === 'saving' ? 0.7 : pressed ? 0.85 : 1 },
+                      { opacity: savePhase === 'saving' ? 0.7 : pressed ? 0.9 : 1 },
+                      pressed && { transform: [{ scale: 0.985 }] },
                     ]}
                     accessibilityRole="button"
                     accessibilityLabel="Save the information"
@@ -761,7 +776,8 @@ export default function RecordScreen() {
                     disabled={sharing}
                     style={({ pressed }) => [
                       styles.primaryBtn,
-                      { opacity: sharing ? 0.7 : pressed ? 0.85 : 1 },
+                      { opacity: sharing ? 0.7 : pressed ? 0.9 : 1 },
+                      pressed && { transform: [{ scale: 0.985 }] },
                     ]}
                     accessibilityRole="button"
                   >
@@ -774,7 +790,10 @@ export default function RecordScreen() {
                   {shareError ? <Text style={styles.errorText}>{shareError}</Text> : null}
                   <Pressable
                     onPress={onNewRecording}
-                    style={({ pressed }) => [styles.secondaryBtn, { opacity: pressed ? 0.75 : 1 }]}
+                    style={({ pressed }) => [
+                      styles.secondaryBtn,
+                      pressed && { opacity: 0.9, transform: [{ scale: 0.985 }] },
+                    ]}
                     accessibilityRole="button"
                   >
                     <Text style={styles.secondaryBtnLabel}>↻ NEW RECORDING</Text>
@@ -822,7 +841,10 @@ export default function RecordScreen() {
             </Text>
             <Pressable
               onPress={chooseExisting}
-              style={({ pressed }) => [styles.chooseBtn, { opacity: pressed ? 0.85 : 1 }]}
+              style={({ pressed }) => [
+                styles.chooseBtn,
+                pressed && { opacity: 0.9, transform: [{ scale: 0.985 }] },
+              ]}
             >
               <Text style={styles.chooseBtnLabel}>EXISTING PATIENT</Text>
               <Text style={styles.chooseBtnHint}>Pick from your list</Text>
@@ -832,7 +854,7 @@ export default function RecordScreen() {
               style={({ pressed }) => [
                 styles.chooseBtn,
                 styles.chooseBtnPrimary,
-                { opacity: pressed ? 0.85 : 1 },
+                pressed && { opacity: 0.9, transform: [{ scale: 0.985 }] },
               ]}
             >
               <Text style={[styles.chooseBtnLabel, styles.chooseBtnLabelPrimary]}>
@@ -842,7 +864,7 @@ export default function RecordScreen() {
                 AI extracts demographics from the audio
               </Text>
             </Pressable>
-            <Pressable onPress={() => setChooseOpen(false)} style={styles.resetBtn}>
+            <Pressable onPress={() => setChooseOpen(false)} style={({ pressed }) => [styles.resetBtn, pressed && { opacity: 0.6 }]}>
               <Text style={styles.resetLink}>CANCEL</Text>
             </Pressable>
           </Pressable>
@@ -877,7 +899,7 @@ export default function RecordScreen() {
                 style={({ pressed }) => [
                   styles.patientRow,
                   selectedPatient?.id === p.id && styles.patientRowActive,
-                  { opacity: pressed ? 0.85 : 1 },
+                  pressed && { opacity: 0.9, transform: [{ scale: 0.985 }] },
                 ]}
               >
                 <View style={{ flex: 1 }}>
@@ -890,7 +912,7 @@ export default function RecordScreen() {
               </Pressable>
             ))}
           </ScrollView>
-          <Pressable onPress={() => setPickerOpen(false)} style={styles.resetBtn}>
+          <Pressable onPress={() => setPickerOpen(false)} style={({ pressed }) => [styles.resetBtn, pressed && { opacity: 0.6 }]}>
             <Text style={styles.resetLink}>CANCEL</Text>
           </Pressable>
         </View>
@@ -919,7 +941,10 @@ export default function RecordScreen() {
 
           <Pressable
             onPress={chooseNewCase}
-            style={({ pressed }) => [styles.newCaseRow, { opacity: pressed ? 0.85 : 1 }]}
+            style={({ pressed }) => [
+              styles.newCaseRow,
+              pressed && { opacity: 0.9, transform: [{ scale: 0.985 }] },
+            ]}
           >
             <Feather name="plus-circle" size={18} color={c.textOnAccent} />
             <Text style={styles.newCaseText}>START A NEW CASE</Text>
@@ -933,7 +958,10 @@ export default function RecordScreen() {
               <Pressable
                 key={cs.id}
                 onPress={() => chooseFollowUp(cs.id)}
-                style={({ pressed }) => [styles.patientRow, { opacity: pressed ? 0.85 : 1 }]}
+                style={({ pressed }) => [
+                  styles.patientRow,
+                  pressed && { opacity: 0.9, transform: [{ scale: 0.985 }] },
+                ]}
               >
                 <View style={{ flex: 1 }}>
                   <Text style={styles.patientRowName}>{cs.case.title}</Text>
@@ -948,7 +976,7 @@ export default function RecordScreen() {
               </Pressable>
             ))}
           </ScrollView>
-          <Pressable onPress={() => setCaseChooserOpen(false)} style={styles.resetBtn}>
+          <Pressable onPress={() => setCaseChooserOpen(false)} style={({ pressed }) => [styles.resetBtn, pressed && { opacity: 0.6 }]}>
             <Text style={styles.resetLink}>CANCEL</Text>
           </Pressable>
         </View>
@@ -1029,7 +1057,7 @@ const makeStyles = (c: ThemeColors) => StyleSheet.create({
   container: {
     flexGrow: 1,
     backgroundColor: c.bg,
-    paddingHorizontal: space.base,
+    paddingHorizontal: space.lg,
     paddingBottom: space.xxl,
     gap: space.lg,
   },
@@ -1040,7 +1068,7 @@ const makeStyles = (c: ThemeColors) => StyleSheet.create({
     minHeight: 34,
     marginBottom: 4,
   },
-  cornerLogo: { position: 'absolute', right: space.base, zIndex: 10 },
+  cornerLogo: { position: 'absolute', right: space.lg, zIndex: 10 },
   inlineBackBtn: {
     position: 'absolute',
     left: 0,
@@ -1060,29 +1088,31 @@ const makeStyles = (c: ThemeColors) => StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 999,
+    paddingHorizontal: 14,
+    paddingVertical: 7,
+    borderRadius: radii.pill,
     backgroundColor: c.recording,
+    ...shadow.sm,
   },
   recPillDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: '#FFFFFF' },
   recPillText: {
     fontFamily: fonts.displayBold,
     fontSize: 11,
     color: '#FFFFFF',
-    letterSpacing: 1.2,
+    letterSpacing: 1.4,
   },
 
   // ─── HERO ─────────────────────────────────────────
   hero: {
     alignItems: 'center',
     gap: space.md,
-    paddingVertical: space.lg,
-    paddingHorizontal: space.base,
+    paddingVertical: space.xl,
+    paddingHorizontal: space.lg,
     backgroundColor: c.surface,
-    borderRadius: radii.lg,
+    borderRadius: radiusXl2,
     borderWidth: 1,
     borderColor: c.border,
+    ...shadow.card,
   },
   heroEyebrowRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   heroEyebrow: {
@@ -1099,7 +1129,9 @@ const makeStyles = (c: ThemeColors) => StyleSheet.create({
     gap: space.sm,
     backgroundColor: c.accent,
     borderRadius: radii.md,
-    paddingVertical: space.md + 2,
+    minHeight: 52,
+    paddingVertical: space.md,
+    ...shadow.card,
   },
   newCaseText: {
     fontFamily: fonts.displayBold,
@@ -1114,11 +1146,12 @@ const makeStyles = (c: ThemeColors) => StyleSheet.create({
     backgroundColor: c.accentSoft,
     borderWidth: 1,
     borderColor: c.accentDim,
-    borderRadius: radii.lg,
+    borderRadius: radii.xl,
     padding: space.lg,
+    ...shadow.sm,
   },
-  paywallTitle: { fontFamily: fonts.displayBold, fontSize: font.size.base, color: c.text },
-  paywallBody: { fontFamily: fonts.display, fontSize: font.size.xs, color: c.textMuted, marginTop: 2, lineHeight: 16 },
+  paywallTitle: { fontFamily: fonts.displayBold, fontSize: font.size.base, color: c.text, letterSpacing: -0.2 },
+  paywallBody: { fontFamily: fonts.display, fontSize: font.size.xs, color: c.textMuted, marginTop: 3, lineHeight: 16 },
   paywallCta: { fontFamily: fonts.displayBold, fontSize: font.size.sm, color: c.accent, letterSpacing: 0.8 },
   trialPill: {
     flexDirection: 'row',
@@ -1129,15 +1162,15 @@ const makeStyles = (c: ThemeColors) => StyleSheet.create({
     borderWidth: 1,
     borderColor: c.accentDim,
     borderRadius: radii.pill,
-    paddingHorizontal: 12,
-    paddingVertical: 6,
+    paddingHorizontal: 14,
+    paddingVertical: 7,
   },
   trialPillText: { fontFamily: fonts.displaySemi, fontSize: font.size.xs, color: c.accent },
   heroDisplay: { alignItems: 'flex-start', alignSelf: 'stretch', paddingHorizontal: 4 },
   heroDisplayLine: {
     fontFamily: fonts.displayBold,
-    fontSize: 34,
-    lineHeight: 40,
+    fontSize: 40,
+    lineHeight: 44,
     color: c.text,
     letterSpacing: -1,
   },
@@ -1145,11 +1178,11 @@ const makeStyles = (c: ThemeColors) => StyleSheet.create({
     fontFamily: fonts.display,
     fontSize: font.size.md,
     color: c.textMuted,
-    lineHeight: 21,
+    lineHeight: 22,
     marginTop: space.sm,
   },
-  meterBlock: { width: '100%', marginVertical: space.sm },
-  micBlock: { marginTop: space.sm },
+  meterBlock: { width: '100%', marginVertical: space.md },
+  micBlock: { marginTop: space.md, marginBottom: space.sm },
   transportRow: {
     flexDirection: 'row',
     gap: space.md,
@@ -1158,33 +1191,38 @@ const makeStyles = (c: ThemeColors) => StyleSheet.create({
     justifyContent: 'center',
   },
   restartBtn: {
-    paddingVertical: space.md + 2,
+    minHeight: 52,
+    justifyContent: 'center',
+    paddingVertical: space.md,
     paddingHorizontal: space.lg,
     borderRadius: radii.md,
     backgroundColor: 'transparent',
-    borderWidth: 1,
+    borderWidth: 1.5,
     borderColor: c.danger,
     alignItems: 'center',
     minWidth: 130,
   },
   restartBtnLabel: {
+    fontFamily: fonts.displayBold,
     color: c.danger,
     fontSize: font.size.sm,
-    fontWeight: font.weight.bold as '700',
     letterSpacing: 1.2,
   },
   confirmBtn: {
-    paddingVertical: space.md + 2,
+    minHeight: 52,
+    justifyContent: 'center',
+    paddingVertical: space.md,
     paddingHorizontal: space.xl,
     borderRadius: radii.md,
     backgroundColor: c.accent,
     alignItems: 'center',
     minWidth: 160,
+    ...shadow.card,
   },
   confirmBtnLabel: {
+    fontFamily: fonts.displayBold,
     color: c.textOnAccent,
     fontSize: font.size.sm,
-    fontWeight: font.weight.bold as '700',
     letterSpacing: 1.2,
   },
 
@@ -1194,17 +1232,17 @@ const makeStyles = (c: ThemeColors) => StyleSheet.create({
   // Shared tag pill (yellow)
   tagPill: {
     alignSelf: 'flex-start',
-    paddingHorizontal: 8,
-    paddingVertical: 3,
+    paddingHorizontal: 9,
+    paddingVertical: 4,
     borderRadius: radii.sm,
     backgroundColor: c.accentSoft,
     borderWidth: 1,
     borderColor: c.accentDim,
   },
   tagPillText: {
+    fontFamily: fonts.displayBold,
     fontSize: font.size.xs - 1,
     color: c.accent,
-    fontWeight: font.weight.bold as '700',
     letterSpacing: 0.8,
     textTransform: 'uppercase',
   },
@@ -1212,25 +1250,27 @@ const makeStyles = (c: ThemeColors) => StyleSheet.create({
   // Header card
   headerCard: {
     backgroundColor: c.surface,
-    borderRadius: radii.lg,
+    borderRadius: radiusXl2,
     borderWidth: 1,
     borderColor: c.border,
     padding: space.lg,
     gap: space.base,
+    ...shadow.card,
   },
   headerCardTop: { flexDirection: 'row', alignItems: 'flex-start', gap: space.md },
   headerTitle: {
+    fontFamily: fonts.displayBold,
     fontSize: font.size.xxl,
-    fontWeight: font.weight.bold as '700',
     color: c.text,
-    marginTop: 6,
+    marginTop: 8,
     letterSpacing: -0.6,
   },
   headerSubtitle: {
+    fontFamily: fonts.display,
     fontSize: font.size.sm,
     color: c.textMuted,
-    marginTop: 4,
-    lineHeight: 18,
+    marginTop: 6,
+    lineHeight: 19,
   },
   metaRow: { flexDirection: 'row', gap: space.sm },
   costRow: { flexDirection: 'row', gap: space.sm, marginTop: space.sm },
@@ -1253,40 +1293,43 @@ const makeStyles = (c: ThemeColors) => StyleSheet.create({
   },
   recDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: '#FFFFFF' },
   recBadgeText: {
+    fontFamily: fonts.displayBold,
     fontSize: 11,
-    fontWeight: '700',
     letterSpacing: 1,
     color: c.text,
   },
   backText: {
+    fontFamily: fonts.displaySemi,
     color: c.text,
     fontSize: font.size.base,
-    fontWeight: font.weight.semibold as '600',
     marginLeft: -2,
   },
   patientPill: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: space.sm,
-    paddingHorizontal: space.md,
-    paddingVertical: 10,
-    borderRadius: radii.md,
+    alignSelf: 'stretch',
+    paddingHorizontal: space.base,
+    paddingVertical: space.md,
+    borderRadius: radii.lg,
     backgroundColor: c.surfaceElevated,
     borderWidth: 1,
     borderColor: c.border,
     marginTop: space.sm,
+    ...shadow.sm,
   },
   patientPillLabel: {
+    fontFamily: fonts.displayBold,
     color: c.accent,
     fontSize: font.size.xs - 1,
-    fontWeight: font.weight.bold as '700',
     letterSpacing: 0.8,
     textTransform: 'uppercase',
   },
   patientPillValue: {
+    fontFamily: fonts.displaySemi,
     color: c.text,
-    fontSize: font.size.base,
-    fontWeight: font.weight.semibold as '600',
+    fontSize: font.size.md,
+    marginTop: 2,
   },
   patientPillAction: {
     flexDirection: 'row',
@@ -1300,9 +1343,9 @@ const makeStyles = (c: ThemeColors) => StyleSheet.create({
     borderColor: c.accentDim,
   },
   patientPillActionText: {
+    fontFamily: fonts.displayBold,
     color: c.accent,
     fontSize: font.size.xs - 2,
-    fontWeight: font.weight.bold as '700',
     letterSpacing: 0.8,
   },
   patientPillLocked: {
@@ -1311,29 +1354,30 @@ const makeStyles = (c: ThemeColors) => StyleSheet.create({
     gap: 4,
   },
   patientPillLockedText: {
+    fontFamily: fonts.displayBold,
     color: c.textSubtle,
     fontSize: font.size.xs - 2,
-    fontWeight: font.weight.bold as '700',
     letterSpacing: 0.8,
   },
   patientRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: space.md,
-    paddingVertical: space.md,
-    borderRadius: radii.md,
+    paddingHorizontal: space.base,
+    paddingVertical: space.md + 2,
+    borderRadius: radii.lg,
     backgroundColor: c.surface,
     borderWidth: 1,
     borderColor: c.border,
-    marginBottom: 8,
+    marginBottom: space.sm + 2,
+    ...shadow.sm,
   },
-  patientRowActive: { borderColor: c.accent },
+  patientRowActive: { borderColor: c.accent, borderWidth: 1.5 },
   patientRowName: {
+    fontFamily: fonts.displaySemi,
     color: c.text,
-    fontSize: font.size.base,
-    fontWeight: font.weight.semibold as '600',
+    fontSize: font.size.md,
   },
-  patientRowMeta: { color: c.textMuted, fontSize: font.size.sm, marginTop: 2 },
+  patientRowMeta: { fontFamily: fonts.display, color: c.textMuted, fontSize: font.size.sm, marginTop: 3 },
   patientRowActiveDot: { color: c.accent, fontSize: 14 },
   modalBackdrop: {
     flex: 1,
@@ -1343,39 +1387,41 @@ const makeStyles = (c: ThemeColors) => StyleSheet.create({
   },
   modalSheet: {
     backgroundColor: c.surface,
-    borderRadius: radii.lg,
+    borderRadius: radiusXl2,
     borderWidth: 1,
     borderColor: c.border,
     padding: space.lg,
     gap: space.md,
+    ...shadow.raised,
   },
   chooseTitle: {
+    fontFamily: fonts.displayBold,
     color: c.text,
     fontSize: font.size.xxl,
-    fontWeight: font.weight.bold as '700',
     letterSpacing: -0.6,
     marginTop: 4,
   },
-  chooseSubtitle: { color: c.textMuted, fontSize: font.size.sm, lineHeight: 19 },
+  chooseSubtitle: { fontFamily: fonts.display, color: c.textMuted, fontSize: font.size.sm, lineHeight: 20 },
   chooseBtn: {
     backgroundColor: c.surfaceElevated,
     borderWidth: 1,
-    borderColor: c.borderStrong,
-    borderRadius: radii.md,
+    borderColor: c.border,
+    borderRadius: radii.lg,
     paddingVertical: space.md + 4,
     paddingHorizontal: space.lg,
     alignItems: 'flex-start',
     gap: 4,
+    ...shadow.sm,
   },
-  chooseBtnPrimary: { backgroundColor: c.accent, borderColor: c.accent },
+  chooseBtnPrimary: { backgroundColor: c.accent, borderColor: c.accent, ...shadow.card },
   chooseBtnLabel: {
+    fontFamily: fonts.displayBold,
     color: c.text,
     fontSize: font.size.base,
-    fontWeight: font.weight.bold as '700',
     letterSpacing: 1.2,
   },
   chooseBtnLabelPrimary: { color: c.textOnAccent },
-  chooseBtnHint: { color: c.textMuted, fontSize: font.size.xs },
+  chooseBtnHint: { fontFamily: fonts.display, color: c.textMuted, fontSize: font.size.xs },
   chooseBtnHintPrimary: { color: 'rgba(255,255,255,0.85)' },
   pdfReadyRow: { flexDirection: 'row', alignItems: 'center', gap: space.sm },
   pdfPath: {
@@ -1391,21 +1437,22 @@ const makeStyles = (c: ThemeColors) => StyleSheet.create({
     borderColor: c.border,
     borderRadius: radii.md,
     paddingHorizontal: space.md,
-    paddingVertical: 10,
+    paddingVertical: space.md,
+    ...shadow.sm,
   },
   metaCellLabel: {
+    fontFamily: fonts.displayBold,
     fontSize: font.size.xs - 1,
     color: c.accent,
-    fontWeight: font.weight.bold as '700',
     letterSpacing: 0.8,
     textTransform: 'uppercase',
   },
   metaCellValue: {
+    fontFamily: fonts.displaySemi,
     fontSize: font.size.base + 1,
     color: c.text,
-    fontWeight: font.weight.semibold as '600',
     fontVariant: ['tabular-nums'],
-    marginTop: 2,
+    marginTop: 3,
   },
   metaPath: {
     fontSize: font.size.xs,
@@ -1419,78 +1466,88 @@ const makeStyles = (c: ThemeColors) => StyleSheet.create({
   // Generic card
   card: {
     backgroundColor: c.surface,
-    borderRadius: radii.lg,
+    borderRadius: radii.xl,
     borderWidth: 1,
     borderColor: c.border,
     padding: space.lg,
     gap: space.base,
+    ...shadow.card,
   },
   cardHeader: { gap: 6 },
   cardTitle: {
+    fontFamily: fonts.displayBold,
     fontSize: font.size.xl,
-    fontWeight: font.weight.bold as '700',
     color: c.text,
-    marginTop: 6,
+    marginTop: 8,
     letterSpacing: -0.4,
   },
   cardDescription: {
+    fontFamily: fonts.display,
     fontSize: font.size.sm,
     color: c.textMuted,
-    lineHeight: 18,
+    lineHeight: 19,
   },
 
   // Buttons
   primaryBtn: {
     marginTop: space.xs,
-    paddingVertical: space.md + 2,
+    minHeight: 52,
+    justifyContent: 'center',
+    paddingVertical: space.md,
     paddingHorizontal: space.lg,
     borderRadius: radii.md,
     backgroundColor: c.accent,
     alignItems: 'center',
+    ...shadow.card,
   },
   primaryBtnLabel: {
+    fontFamily: fonts.displayBold,
     color: c.textOnAccent,
     fontSize: font.size.sm,
-    fontWeight: font.weight.bold as '700',
     letterSpacing: 1.2,
   },
   secondaryBtn: {
     marginTop: space.sm,
+    minHeight: 48,
+    justifyContent: 'center',
     paddingVertical: space.sm + 2,
     paddingHorizontal: space.base,
     borderRadius: radii.md,
-    backgroundColor: 'transparent',
+    backgroundColor: c.surface,
     borderWidth: 1,
-    borderColor: c.borderStrong,
+    borderColor: c.border,
     alignItems: 'center',
+    ...shadow.sm,
   },
   secondaryBtnLabel: {
+    fontFamily: fonts.displayBold,
     color: c.text,
     fontSize: font.size.sm,
-    fontWeight: font.weight.bold as '700',
     letterSpacing: 1,
   },
 
   resetBtn: { alignSelf: 'center', paddingVertical: space.md, marginTop: space.sm },
   resetLink: {
+    fontFamily: fonts.displayBold,
     color: c.accent,
     fontSize: font.size.sm,
-    fontWeight: font.weight.bold as '700',
     letterSpacing: 1.5,
   },
 
   // Error
   errorCard: {
     backgroundColor: c.dangerSoft,
-    borderRadius: radii.lg,
+    borderRadius: radii.xl,
     borderWidth: 1,
     borderColor: c.danger,
-    padding: space.base,
+    padding: space.lg,
     gap: space.sm,
+    ...shadow.sm,
   },
-  errorText: { color: c.text, fontSize: font.size.sm, lineHeight: 20 },
+  errorText: { fontFamily: fonts.display, color: c.text, fontSize: font.size.sm, lineHeight: 20 },
 
   disclaimer: {
+    fontFamily: fonts.display,
     fontSize: font.size.xs,
     color: c.textDim,
     textAlign: 'center',

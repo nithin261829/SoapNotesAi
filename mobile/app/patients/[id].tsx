@@ -42,7 +42,7 @@ import {
 import { useAuth } from '@/auth/AuthContext';
 import { useStyles, useThemeColors } from '@/theme/ThemeContext';
 import { fonts } from '@/theme/fonts';
-import { font, radii, space, type ThemeColors } from '@/theme/tokens';
+import { font, radii, radiusXl2, shadow, space, type ThemeColors } from '@/theme/tokens';
 
 export default function PatientDetailScreen() {
   const c = useThemeColors();
@@ -124,36 +124,34 @@ export default function PatientDetailScreen() {
 
         {patient ? (
           <View style={styles.hero}>
-            <View style={styles.heroTopRow}>
-              <View style={styles.tagPill}>
-                <Text style={styles.tagPillText}>Patient</Text>
-              </View>
-              <Pressable
-                onPress={() => setEditOpen(true)}
-                style={({ pressed }) => [styles.editBtn, { opacity: pressed ? 0.7 : 1 }]}
-                accessibilityRole="button"
-                accessibilityLabel="Edit patient"
-              >
-                <Feather name="edit-2" size={13} color={c.accent} />
-                <Text style={styles.editBtnText}>EDIT</Text>
-              </Pressable>
-            </View>
+            <Pressable
+              onPress={() => setEditOpen(true)}
+              hitSlop={8}
+              style={({ pressed }) => [styles.editBtn, pressed && styles.pressed]}
+              accessibilityRole="button"
+              accessibilityLabel="Edit patient"
+            >
+              <Feather name="edit-2" size={15} color={c.accent} />
+            </Pressable>
+
             <View style={styles.heroIdentity}>
               <View style={styles.avatar}>
                 <Text style={styles.avatarText}>{initials(patient.patient.name)}</Text>
               </View>
-              <View style={{ flex: 1 }}>
-                <Text style={styles.patientName} numberOfLines={2}>
-                  {patient.patient.name}
-                </Text>
-                <View style={styles.metaRow}>
-                  {patient.patient.age_at_record != null ? (
-                    <Text style={styles.meta}>{patient.patient.age_at_record} y/o</Text>
-                  ) : null}
-                  {patient.patient.sex ? (
-                    <Text style={styles.meta}>{patient.patient.sex}</Text>
-                  ) : null}
-                </View>
+              <Text style={styles.heroEyebrow}>Patient</Text>
+              <Text style={styles.patientName} numberOfLines={2}>
+                {patient.patient.name}
+              </Text>
+              <View style={styles.metaRow}>
+                {patient.patient.age_at_record != null ? (
+                  <Text style={styles.meta}>{patient.patient.age_at_record} y/o</Text>
+                ) : null}
+                {patient.patient.age_at_record != null && patient.patient.sex ? (
+                  <Text style={styles.metaDot}>·</Text>
+                ) : null}
+                {patient.patient.sex ? (
+                  <Text style={styles.meta}>{patient.patient.sex}</Text>
+                ) : null}
               </View>
             </View>
 
@@ -171,7 +169,7 @@ export default function PatientDetailScreen() {
                   params: { patient_id: patientId } as any,
                 })
               }
-              style={({ pressed }) => [styles.primaryCta, { opacity: pressed ? 0.85 : 1 }]}
+              style={({ pressed }) => [styles.primaryCta, pressed && styles.pressed]}
               accessibilityRole="button"
               accessibilityLabel="Record new encounter for this patient"
             >
@@ -222,7 +220,7 @@ export default function PatientDetailScreen() {
                       // eslint-disable-next-line @typescript-eslint/no-explicit-any
                       router.push(`/patients/${patientId}/recordings/${r.id}` as any)
                     }
-                    style={({ pressed }) => [styles.recordingCard, { opacity: pressed ? 0.85 : 1 }]}
+                    style={({ pressed }) => [styles.recordingCard, pressed && styles.pressed]}
                   >
                     <View style={styles.recordingLeft}>
                       <Text style={styles.recordingTime}>
@@ -232,14 +230,20 @@ export default function PatientDetailScreen() {
                         })}
                       </Text>
                     </View>
-                    <View style={{ flex: 1, gap: 4 }}>
+                    <View style={{ flex: 1, gap: 6 }}>
                       <Text style={styles.recordingChief} numberOfLines={2}>
                         {chief ?? 'No chief complaint recorded'}
                       </Text>
                       {dx.length > 0 ? (
-                        <Text style={styles.recordingDx} numberOfLines={1}>
-                          {dx.join(' · ')}
-                        </Text>
+                        <View style={styles.dxRow}>
+                          {dx.map((d, i) => (
+                            <View key={`${r.id}-dx-${i}`} style={styles.dxChip}>
+                              <Text style={styles.dxChipText} numberOfLines={1}>
+                                {d}
+                              </Text>
+                            </View>
+                          ))}
+                        </View>
                       ) : null}
                       <View style={styles.recordingMeta}>
                         {r.recording.duration_seconds ? (
@@ -277,8 +281,10 @@ function StatCell({ label, value }: { label: string; value: string }) {
   const styles = useStyles(makeStyles);
   return (
     <View style={styles.statCell}>
+      <Text style={styles.statValue} numberOfLines={1} adjustsFontSizeToFit>
+        {value}
+      </Text>
       <Text style={styles.statLabel}>{label}</Text>
-      <Text style={styles.statValue}>{value}</Text>
     </View>
   );
 }
@@ -422,7 +428,7 @@ function FollowupCard({ patientId, phone }: { patientId: string; phone: string |
         {phone ? (
           <Pressable
             onPress={() => void Linking.openURL(`tel:${phone}`)}
-            style={({ pressed }) => [styles.callBtn, { opacity: pressed ? 0.7 : 1 }]}
+            style={({ pressed }) => [styles.callBtn, pressed && styles.pressed]}
             accessibilityRole="button"
             accessibilityLabel="Call patient"
           >
@@ -453,7 +459,7 @@ function FollowupCard({ patientId, phone }: { patientId: string; phone: string |
             </View>
             <Pressable
               onPress={() => void markDone(f.id)}
-              style={({ pressed }) => [styles.doneBtn, { opacity: pressed ? 0.7 : 1 }]}
+              style={({ pressed }) => [styles.doneBtn, pressed && styles.pressed]}
               accessibilityRole="button"
               accessibilityLabel="Mark follow-up done"
             >
@@ -475,7 +481,8 @@ function FollowupCard({ patientId, phone }: { patientId: string; phone: string |
             disabled={busy}
             style={({ pressed }) => [
               styles.presetChip,
-              { opacity: busy ? 0.5 : pressed ? 0.75 : 1 },
+              busy && styles.disabled,
+              !busy && pressed && styles.pressed,
             ]}
           >
             <Text style={styles.presetChipText}>{p.label}</Text>
@@ -640,7 +647,7 @@ function DocumentsCard({ patientId }: { patientId: string }) {
             />
             <Pressable
               onPress={() => void openDocument(d)}
-              style={({ pressed }) => [{ flex: 1, opacity: pressed ? 0.6 : 1 }]}
+              style={({ pressed }) => [{ flex: 1 }, pressed && styles.pressed]}
               accessibilityRole="button"
               accessibilityLabel={`Open ${d.document.label ?? d.document.filename}`}
             >
@@ -657,7 +664,7 @@ function DocumentsCard({ patientId }: { patientId: string }) {
             </Pressable>
             <Pressable
               onPress={() => confirmDelete(d)}
-              style={({ pressed }) => [styles.doneBtn, { opacity: pressed ? 0.7 : 1 }]}
+              style={({ pressed }) => [styles.doneBtn, pressed && styles.pressed]}
               accessibilityRole="button"
               accessibilityLabel="Delete document"
             >
@@ -670,7 +677,11 @@ function DocumentsCard({ patientId }: { patientId: string }) {
       <Pressable
         onPress={() => void pickAndUpload()}
         disabled={busy}
-        style={({ pressed }) => [styles.attachBtn, { opacity: busy ? 0.5 : pressed ? 0.75 : 1 }]}
+        style={({ pressed }) => [
+          styles.attachBtn,
+          busy && styles.disabled,
+          !busy && pressed && styles.pressed,
+        ]}
         accessibilityRole="button"
         accessibilityLabel="Attach a document"
       >
@@ -794,7 +805,11 @@ function EditPatientModal({
                     <Pressable
                       key={opt}
                       onPress={() => setSex(selected ? null : opt)}
-                      style={[styles.sexChip, selected && styles.sexChipSelected]}
+                      style={({ pressed }) => [
+                        styles.sexChip,
+                        selected && styles.sexChipSelected,
+                        pressed && styles.pressed,
+                      ]}
                     >
                       <Text style={[styles.sexChipText, selected && styles.sexChipTextSelected]}>
                         {opt}
@@ -825,7 +840,8 @@ function EditPatientModal({
             disabled={saving || name.trim().length === 0}
             style={({ pressed }) => [
               styles.primaryBtn,
-              { opacity: saving || name.trim().length === 0 ? 0.45 : pressed ? 0.85 : 1 },
+              (saving || name.trim().length === 0) && styles.disabled,
+              !(saving || name.trim().length === 0) && pressed && styles.pressed,
             ]}
           >
             {saving ? (
@@ -835,7 +851,10 @@ function EditPatientModal({
             )}
           </Pressable>
 
-          <Pressable onPress={onClose} style={styles.cancelBtn}>
+          <Pressable
+            onPress={onClose}
+            style={({ pressed }) => [styles.cancelBtn, pressed && styles.pressed]}
+          >
             <Text style={styles.cancelLink}>Cancel</Text>
           </Pressable>
         </ScrollView>
@@ -847,6 +866,11 @@ function EditPatientModal({
 const makeStyles = (c: ThemeColors) => StyleSheet.create({
   container: { flex: 1, backgroundColor: c.bg },
   scroll: { padding: space.lg, gap: space.md, paddingBottom: 60 },
+
+  // Shared interaction feedback — every Pressable presses the same way.
+  pressed: { opacity: 0.9, transform: [{ scale: 0.985 }] },
+  disabled: { opacity: 0.5 },
+
   backBtn: { flexDirection: 'row', alignItems: 'center', gap: 2, paddingHorizontal: 4 },
   backText: {
     fontFamily: fonts.displaySemi,
@@ -854,35 +878,72 @@ const makeStyles = (c: ThemeColors) => StyleSheet.create({
     fontSize: font.size.base,
     marginLeft: -2,
   },
+
+  // ─── Hero — premium profile header ──────────────────────────────
   hero: {
     backgroundColor: c.surface,
-    borderRadius: radii.lg,
-    borderWidth: 1,
-    borderColor: c.border,
-    padding: space.lg,
+    borderRadius: radiusXl2,
+    padding: space.xl,
+    paddingTop: space.xl + space.xs,
     gap: space.md,
+    alignItems: 'center',
+    ...shadow.card,
   },
-  heroTopRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  heroIdentity: { flexDirection: 'row', alignItems: 'center', gap: space.md, marginTop: 4 },
-  avatar: {
-    width: 52,
-    height: 52,
-    borderRadius: 26,
-    backgroundColor: c.surfaceElevated,
+  editBtn: {
+    position: 'absolute',
+    top: space.md,
+    right: space.md,
+    zIndex: 2,
+    width: 36,
+    height: 36,
+    borderRadius: radii.pill,
+    backgroundColor: c.accentSoft,
     borderWidth: 1,
-    borderColor: c.borderStrong,
+    borderColor: c.accentDim,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  avatarText: {
-    color: c.accent,
-    fontSize: font.size.base,
-    fontWeight: font.weight.bold as '700',
-    letterSpacing: 0.5,
+  heroIdentity: { alignItems: 'center', gap: 3 },
+  avatar: {
+    width: 76,
+    height: 76,
+    borderRadius: radii.pill,
+    backgroundColor: c.accentSoftStrong,
+    borderWidth: 1.5,
+    borderColor: c.accentDim,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: space.xs,
   },
+  avatarText: {
+    fontFamily: fonts.displayBold,
+    fontSize: font.size.xxl,
+    color: c.accent,
+    letterSpacing: -0.5,
+  },
+  heroEyebrow: {
+    fontFamily: fonts.displayBold,
+    fontSize: font.size.xs - 1,
+    color: c.textMuted,
+    letterSpacing: 1.4,
+    textTransform: 'uppercase',
+  },
+  patientName: {
+    fontFamily: fonts.displayBold,
+    fontSize: font.size.xxl,
+    lineHeight: font.size.xxl + 6,
+    color: c.text,
+    letterSpacing: -0.5,
+    textAlign: 'center',
+  },
+  metaRow: { flexDirection: 'row', alignItems: 'center', gap: space.sm, marginTop: 2 },
+  meta: { fontFamily: fonts.displayMedium, color: c.textMuted, fontSize: font.size.sm, textTransform: 'capitalize' },
+  metaDot: { color: c.textDim, fontSize: font.size.sm },
+
   statsRow: {
     flexDirection: 'row',
-    gap: 8,
+    alignSelf: 'stretch',
+    gap: space.sm,
     marginTop: space.sm,
   },
   statCell: {
@@ -890,83 +951,80 @@ const makeStyles = (c: ThemeColors) => StyleSheet.create({
     backgroundColor: c.surfaceElevated,
     borderWidth: 1,
     borderColor: c.border,
-    borderRadius: radii.md,
-    paddingHorizontal: space.sm + 2,
-    paddingVertical: 10,
-  },
-  statLabel: {
-    fontSize: font.size.xs - 1,
-    color: c.accent,
-    fontWeight: font.weight.bold as '700',
-    letterSpacing: 0.8,
-    textTransform: 'uppercase',
+    borderRadius: radii.lg,
+    paddingHorizontal: space.xs,
+    paddingVertical: space.md,
+    alignItems: 'center',
+    gap: 3,
   },
   statValue: {
-    fontSize: font.size.lg,
+    fontFamily: fonts.displayExtra,
+    fontSize: font.size.xl,
     color: c.text,
-    fontWeight: font.weight.semibold as '600',
+    letterSpacing: -0.5,
     fontVariant: ['tabular-nums'],
-    marginTop: 2,
+  },
+  statLabel: {
+    fontFamily: fonts.displaySemi,
+    fontSize: font.size.xs - 1,
+    color: c.textMuted,
+    letterSpacing: 0.5,
+    textTransform: 'uppercase',
   },
   primaryCta: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
+    alignSelf: 'stretch',
     gap: 8,
     backgroundColor: c.accent,
-    borderRadius: radii.md,
-    paddingVertical: space.md + 2,
-    marginTop: 4,
+    borderRadius: radii.lg,
+    paddingVertical: space.md + 3,
+    marginTop: space.xs,
+    ...shadow.sm,
   },
   primaryCtaText: {
+    fontFamily: fonts.displayBold,
     color: c.textOnAccent,
     fontSize: font.size.sm,
-    fontWeight: font.weight.bold as '700',
     letterSpacing: 1.2,
   },
+
+  // ─── Encounters list ────────────────────────────────────────────
   dateGroupHeader: {
+    fontFamily: fonts.displayBold,
     color: c.textSubtle,
     fontSize: font.size.xs - 1,
-    fontWeight: font.weight.bold as '700',
     letterSpacing: 1.2,
     textTransform: 'uppercase',
     marginTop: space.sm,
+    marginLeft: 2,
   },
   recordingLeft: {
-    width: 58,
-    alignItems: 'center',
+    width: 52,
+    alignItems: 'flex-start',
     justifyContent: 'center',
   },
   recordingTime: {
+    fontFamily: fonts.displaySemi,
     color: c.text,
     fontSize: font.size.base,
-    fontWeight: font.weight.semibold as '600',
     fontVariant: ['tabular-nums'],
     letterSpacing: -0.2,
   },
-  recordingDx: {
+  dxRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 5 },
+  dxChip: {
+    maxWidth: '100%',
+    paddingHorizontal: 9,
+    paddingVertical: 3,
+    borderRadius: radii.pill,
+    backgroundColor: c.accentSoft,
+  },
+  dxChipText: {
+    fontFamily: fonts.displayBold,
     color: c.accent,
     fontSize: font.size.xs,
-    fontWeight: font.weight.bold as '700',
-    letterSpacing: 0.5,
-  },
-  cardTopRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  editBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    borderRadius: radii.sm,
-    backgroundColor: c.accentSoft,
-    borderWidth: 1,
-    borderColor: c.accentDim,
-  },
-  editBtnText: {
-    color: c.accent,
-    fontSize: font.size.xs - 1,
-    fontWeight: font.weight.bold as '700',
-    letterSpacing: 0.8,
+    letterSpacing: 0.2,
   },
   modalContent: {
     padding: space.lg,
@@ -1053,57 +1111,50 @@ const makeStyles = (c: ThemeColors) => StyleSheet.create({
     letterSpacing: 0.8,
     textTransform: 'uppercase',
   },
-  patientName: {
-    fontFamily: fonts.serifBoldItalic,
-    color: c.text,
-    fontSize: 30,
-    lineHeight: 36,
-    letterSpacing: -0.8,
-    marginTop: 4,
-  },
-  metaRow: { flexDirection: 'row', gap: space.md },
-  meta: { color: c.textMuted, fontSize: font.size.sm },
-
+  // ─── Section headers ────────────────────────────────────────────
   sectionHeader: {
     flexDirection: 'row',
-    alignItems: 'baseline',
+    alignItems: 'center',
     gap: 8,
     marginTop: space.sm,
-    marginBottom: 4,
+    marginBottom: 2,
+    marginLeft: 2,
   },
   sectionTitle: {
-    color: c.textSubtle,
+    fontFamily: fonts.displayBold,
+    color: c.textMuted,
     fontSize: font.size.xs,
-    fontWeight: font.weight.bold as '700',
     letterSpacing: 1,
     textTransform: 'uppercase',
   },
   sectionCount: {
+    fontFamily: fonts.display,
     color: c.textDim,
     fontSize: font.size.xs,
     fontVariant: ['tabular-nums'],
   },
 
+  // ─── Follow-ups + Documents sub-cards ───────────────────────────
   followupCard: {
     backgroundColor: c.surface,
-    borderRadius: radii.lg,
-    borderWidth: 1,
-    borderColor: c.border,
+    borderRadius: radii.xl,
     padding: space.lg,
     gap: space.sm,
+    ...shadow.card,
   },
   followupHeader: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
+    marginBottom: 2,
   },
   callBtn: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 5,
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-    borderRadius: radii.sm,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: radii.pill,
     borderWidth: 1,
     borderColor: c.accentDim,
     backgroundColor: c.accentSoft,
@@ -1118,13 +1169,13 @@ const makeStyles = (c: ThemeColors) => StyleSheet.create({
     fontFamily: fonts.display,
     fontSize: font.size.sm,
     color: c.textMuted,
-    lineHeight: 18,
+    lineHeight: 19,
   },
   followupRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: space.sm,
-    paddingVertical: 6,
+    gap: space.md,
+    paddingVertical: 8,
   },
   followupDate: {
     fontFamily: fonts.displaySemi,
@@ -1138,19 +1189,20 @@ const makeStyles = (c: ThemeColors) => StyleSheet.create({
     marginTop: 1,
   },
   doneBtn: {
-    width: 28,
-    height: 28,
-    borderRadius: radii.sm,
+    width: 30,
+    height: 30,
+    borderRadius: radii.md,
+    backgroundColor: c.surfaceElevated,
     borderWidth: 1,
     borderColor: c.border,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  followupPresets: { flexDirection: 'row', gap: 8, marginTop: 2 },
+  followupPresets: { flexDirection: 'row', flexWrap: 'wrap', gap: space.sm, marginTop: space.xs },
   presetChip: {
-    paddingHorizontal: 12,
-    paddingVertical: 7,
-    borderRadius: radii.sm,
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: radii.pill,
     borderWidth: 1,
     borderColor: c.border,
     backgroundColor: c.surfaceElevated,
@@ -1178,12 +1230,12 @@ const makeStyles = (c: ThemeColors) => StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     gap: 6,
-    marginTop: 2,
-    paddingVertical: 10,
-    borderRadius: radii.sm,
+    marginTop: space.xs,
+    paddingVertical: 12,
+    borderRadius: radii.md,
     borderWidth: 1,
-    borderColor: c.border,
-    backgroundColor: c.surfaceElevated,
+    borderColor: c.accentDim,
+    backgroundColor: c.accentSoft,
   },
   attachBtnText: {
     fontFamily: fonts.displayBold,
@@ -1192,38 +1244,36 @@ const makeStyles = (c: ThemeColors) => StyleSheet.create({
     letterSpacing: 0.8,
   },
 
+  // ─── Encounter rows ─────────────────────────────────────────────
   recordingCard: {
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: c.surface,
     borderRadius: radii.lg,
-    borderWidth: 1,
-    borderColor: c.border,
-    padding: space.lg,
-    gap: space.md,
+    padding: space.md + 2,
+    gap: space.sm,
+    ...shadow.sm,
   },
-  recordingDate: {
+  recordingChief: {
+    fontFamily: fonts.displaySemi,
     color: c.text,
-    fontSize: font.size.base,
-    fontWeight: font.weight.semibold as '600',
+    fontSize: font.size.sm,
+    lineHeight: 19,
   },
-  recordingChief: { color: c.textMuted, fontSize: font.size.sm, lineHeight: 19 },
-  recordingMeta: { flexDirection: 'row', gap: 6, marginTop: 2 },
-  metaSmall: { color: c.textSubtle, fontSize: font.size.xs },
+  recordingMeta: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 1 },
+  metaSmall: { fontFamily: fonts.display, color: c.textSubtle, fontSize: font.size.xs, textTransform: 'capitalize' },
   statusDot: { color: c.textDim },
-  chevron: { color: c.textSubtle, fontSize: 26, fontWeight: '300' },
 
   emptyCard: {
     backgroundColor: c.surface,
-    borderRadius: radii.lg,
-    borderWidth: 1,
-    borderColor: c.border,
+    borderRadius: radii.xl,
     padding: space.xl,
     gap: space.sm,
     alignItems: 'flex-start',
+    ...shadow.card,
   },
-  emptyTitle: { color: c.text, fontSize: font.size.lg, fontWeight: font.weight.bold as '700' },
-  emptyBody: { color: c.textMuted, fontSize: font.size.sm, lineHeight: 19 },
+  emptyTitle: { fontFamily: fonts.displayBold, color: c.text, fontSize: font.size.lg },
+  emptyBody: { fontFamily: fonts.display, color: c.textMuted, fontSize: font.size.sm, lineHeight: 19 },
 
   errorBox: {
     backgroundColor: c.dangerSoft,
@@ -1232,5 +1282,5 @@ const makeStyles = (c: ThemeColors) => StyleSheet.create({
     borderRadius: radii.md,
     padding: space.md,
   },
-  errorText: { color: c.text, fontSize: font.size.sm },
+  errorText: { fontFamily: fonts.display, color: c.text, fontSize: font.size.sm },
 });
