@@ -1,6 +1,6 @@
 import { Feather } from '@expo/vector-icons';
 import { Tabs, useRouter } from 'expo-router';
-import { Alert } from 'react-native';
+import { Alert, Platform } from 'react-native';
 
 import { usePushRegistration } from '@/notifications/usePushRegistration';
 import { isRecordingActive, triggerDiscardRecording } from '@/recording/recordingFlag';
@@ -50,11 +50,31 @@ export default function TabsLayout() {
         tabBarInactiveTintColor: c.textMuted,
         tabBarStyle: {
           backgroundColor: c.surface,
-          borderTopColor: c.border,
-          borderTopWidth: 1,
-          height: 86,
-          paddingTop: 8,
-          paddingBottom: 28,
+          ...(Platform.OS === 'web'
+            ? {
+                // Floating, rounded pill bar on web.
+                borderTopWidth: 0,
+                borderRadius: 24,
+                height: 66,
+                paddingTop: 8,
+                paddingBottom: 8,
+                marginHorizontal: 16,
+                marginBottom: 14,
+                maxWidth: 640,
+                width: '100%',
+                alignSelf: 'center',
+                shadowColor: '#000',
+                shadowOpacity: 0.1,
+                shadowRadius: 20,
+                shadowOffset: { width: 0, height: 8 },
+              }
+            : {
+                borderTopColor: c.border,
+                borderTopWidth: 1,
+                height: 86,
+                paddingTop: 8,
+                paddingBottom: 28,
+              }),
         },
         tabBarLabelStyle: {
           fontFamily: fonts.displayBold,
