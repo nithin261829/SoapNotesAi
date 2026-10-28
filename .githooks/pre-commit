@@ -1,0 +1,24 @@
+#!/usr/bin/env bash
+# Blocks commits that contain secrets or files that must stay local.
+# Installed by scripts/install-hooks.sh. See CONTRIBUTING.md.
+set -euo pipefail
+
+blocked=$(git diff --cached --name-only --diff-filter=ACMR | grep -E \
+  '(^|/)\.env$|(^|/)\.env\.[^/]*$|adminsdk.*\.json$|service-?account.*\.json$|\.pem$|\.p12$|\.key$|(^|/)\.claude/|(^|/)\.mcp\.json$|\.xcode\.env\.local$' \
+  | grep -vE '\.env\.example$' || true)
+if [ -n "$blocked" ]; then
+  echo "✋ Commit blocked: these files must never be committed:" >&2
+  echo "$blocked" | sed 's/^/   /' >&2
+  echo "   Unstage them with: git restore --staged <file>" >&2
+  exit 1
+fi
+
+if ! command -v gitleaks >/dev/null 2>&1; then
+  echo "✋ gitleaks is not installed. Run: brew install gitleaks" >&2
+  exit 1
+fi
+if ! gitleaks git --pre-commit --staged --redact --no-banner .; then
+  echo "✋ Commit blocked: gitleaks found a secret in your staged changes (shown above, redacted)." >&2
+  echo "   Remove it, use an environment variable instead, and commit again." >&2
+  exit 1
+fi

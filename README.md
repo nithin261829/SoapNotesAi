@@ -162,6 +162,7 @@ To deploy the backend to Cloud Run and the web app to Firebase Hosting, see [`do
 ## Security and privacy
 
 - No secrets are committed. Configuration comes from environment variables; see the two `.env.example` files.
+- Every commit is scanned for secrets: a local pre-commit hook (`./scripts/install-hooks.sh`) and a GitHub Actions check. The rules are in [`CONTRIBUTING.md`](CONTRIBUTING.md).
 - The backend never trusts the client for organization, clinic or user IDs. It reads them from the verified ID token.
 - Errors and logs never contain patient data.
 - Going live with real patient data needs a Google Cloud BAA and a review of HIPAA-eligible services. [`docs/compliance-notes.md`](docs/compliance-notes.md) lists every place patient data leaves the system.
