@@ -14,7 +14,6 @@ This file is the canonical inventory of where PHI leaves the system and which th
 | Cloud Firestore | Patient metadata, transcripts, structured SOAP notes, audit events | Yes | Verify under your Google Cloud BAA | All under `clinics/{clinicId}/...` path |
 | Firebase Authentication | Email + auth tokens (no clinical data) | Yes | Verify under your Google Cloud BAA | |
 | Vertex AI (Gemini) | Raw audio bytes (returns transcript + SOAP) | Yes | Verify region + product-specific BAA terms | The audio is the highest-PHI payload — confirm Vertex AI generative AI is BAA-covered in your project's region |
-| Google Cloud Text-to-Speech (optional) | SOAP note text | Yes | Verify | Only invoked if doctor uses "read back" |
 
 ## Where PHI must NOT appear
 
@@ -35,7 +34,6 @@ The audit collection (`clinics/{clinicId}/audit`) is intentionally narrow — se
 | Backend → Cloud Storage | TLS to `*.googleapis.com` |
 | Backend → STT | TLS to `speech.googleapis.com` |
 | Backend → Vertex AI | TLS to `*-aiplatform.googleapis.com` |
-| Backend → TTS | TLS to `texttospeech.googleapis.com` |
 
 No egress to non-Google services in v1.
 

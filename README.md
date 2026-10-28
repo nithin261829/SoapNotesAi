@@ -13,7 +13,7 @@ Full-stack project: **React Native (Expo) mobile + web app**, a **Python FastAPI
 - **Safety guardrails.** The prompt forbids invented vitals, diagnoses or doses. Output is forced to JSON, run at low temperature and validated with Pydantic before anything is saved.
 - **Multi-tenant.** Organizations → clinics → patients → cases. Every request is scoped by a verified Firebase ID token, and Firestore/Storage rules enforce the same boundary.
 - **Production features.** Clinic letterhead PDFs, follow-up cases, patient reminders with push notifications, phone OTP sign-in, staff invites, doctor verification, per-clinic billing with Razorpay, and per-note AI cost tracking.
-- **Tested and deployed.** 63 backend tests (pytest), Docker image on Cloud Run, Expo web build on Firebase Hosting.
+- **Tested and deployed.** 66 backend tests (pytest), Docker image on Cloud Run, Expo web build on Firebase Hosting.
 
 ## AI architecture
 
