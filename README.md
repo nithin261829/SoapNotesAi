@@ -40,6 +40,7 @@ The model works from the speech itself, including code-switched speech, instead 
 | Layer | Implementation | Where |
 |---|---|---|
 | **Model** | Gemini 2.5 Flash (multimodal LLM) on Google Vertex AI; Gemini 2.5 Pro via one env var | `VERTEX_MODEL` in `backend/.env` |
+| **SDK** | Google **Vertex AI SDK for Python** (`google-cloud-aiplatform`, imported as `vertexai`): `GenerativeModel.generate_content()` with the audio as a `Part`. No agent framework (ADK, LangChain) and no OpenAI SDK; the task is a single call | `backend/pyproject.toml`, `vertex_gemini.py` |
 | **Input** | Raw audio bytes (m4a/mp4/wav/mp3/webm) sent with the prompt, no pre-transcription | `backend/app/providers/vertex_gemini.py` |
 | **Prompt engineering** | Medical-scribe role, step-by-step task (transcribe, then extract), multilingual rules, clinical-safety rules, exact JSON template | `_PROMPT_TEMPLATE` in `vertex_gemini.py` |
 | **Structured output** | `response_mime_type="application/json"`, fixed SOAP template, `temperature=0.1` for factual, repeatable answers | `vertex_gemini.py` |
@@ -49,6 +50,14 @@ The model works from the speech itself, including code-switched speech, instead 
 | **Provenance** | Each note is stamped with provider, model version and a `validated` flag | `vertex_gemini.py` |
 | **Cost observability** | Prompt and output token counts stored per note to track AI cost | `backend/app/routers/audio.py` |
 | **Privacy** | AI errors and logs record error codes and field paths only, never patient text | `vertex_gemini.py` |
+
+### How the note gets structured
+
+No separate NLP library or extraction tool is involved. Gemini does the structuring itself, held in shape by three layers:
+
+1. **Prompt template.** The prompt contains the exact JSON skeleton of a SOAP note (every section and field, with `null` / `[]` defaults), so the model fills in a known shape.
+2. **JSON mode.** The Vertex AI SDK call sets `response_mime_type="application/json"`, so the model can only answer with JSON, not free text.
+3. **Schema validation.** The reply is parsed and validated with **Pydantic** against the `SoapNote` model (`backend/app/models/soap.py`): types, allowed values (for example `sex` must be `male`, `female`, `other` or `unknown`) and nested medication and allergy objects. Invalid output is rejected with `schema_validation_failed` and never saved.
 
 ### What the prompt teaches the model
 
@@ -138,7 +147,7 @@ The AI step sits behind a Python `Protocol` (`backend/app/interfaces/audio_to_so
 |---|---|
 | Mobile / web | React Native 0.81, Expo SDK 54, Expo Router, TypeScript |
 | Backend | Python 3.12, FastAPI, Pydantic v2, `uv` |
-| AI | Gemini 2.5 Flash (multimodal) on Vertex AI |
+| AI | Gemini 2.5 Flash (multimodal) via the Vertex AI SDK for Python (`google-cloud-aiplatform`) |
 | Auth | Firebase Authentication (email, Google, phone OTP) |
 | Data | Cloud Firestore, Cloud Storage for Firebase |
 | PDF | WeasyPrint (HTML/CSS template → PDF) |
