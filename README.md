@@ -15,6 +15,37 @@ Full-stack project: **React Native (Expo) mobile + web app**, a **Python FastAPI
 - **Production features.** Clinic letterhead PDFs, follow-up cases, patient reminders with push notifications, phone OTP sign-in, staff invites, doctor verification, per-clinic billing with Razorpay, and per-note AI cost tracking.
 - **Tested and deployed.** 63 backend tests (pytest), Docker image on Cloud Run, Expo web build on Firebase Hosting.
 
+## System architecture
+
+```mermaid
+flowchart TB
+    subgraph Clients
+        M["📱 Mobile app<br/>Expo · React Native<br/>iOS / Android"]
+        W["💻 Web dashboard<br/>Expo web build<br/>Firebase Hosting"]
+    end
+    subgraph GCP["Google Cloud"]
+        API["⚙️ FastAPI backend<br/>Docker on Cloud Run"]
+        AI["🧠 Vertex AI<br/>Gemini 2.5 Flash"]
+        FS[("Firestore<br/>orgs · clinics · patients<br/>cases · notes")]
+        ST[("Cloud Storage<br/>audio files")]
+        SCH["⏰ Cloud Scheduler<br/>daily reminders"]
+    end
+    AUTH["🔐 Firebase Auth<br/>email · Google · phone OTP"]
+    PAY["💳 Razorpay<br/>clinic billing"]
+
+    M & W -->|sign in| AUTH
+    M & W -->|"REST + ID token"| API
+    API -->|verify token| AUTH
+    API -->|"audio → transcript + SOAP"| AI
+    API --> FS
+    API --> ST
+    API -->|orders, webhooks| PAY
+    SCH -->|"POST /v1/internal/…"| API
+    API -->|push notifications| M
+```
+
+The apps never talk to the AI or the database directly for clinical data. Every call goes through the backend, which checks the user's token, works out their organization and clinic, and only then reads or writes data.
+
 ## How the audio becomes a SOAP note
 
 ```mermaid
@@ -68,24 +99,51 @@ docs/       Architecture, compliance notes, deployment runbook, roadmap
 
 ## Run it locally
 
-You need Python 3.12+, [`uv`](https://docs.astral.sh/uv/), Node 20+, and a Firebase project with Firestore, Storage and Authentication turned on. For real AI output you also need a Google Cloud project with Vertex AI enabled; otherwise set `AUDIO_TO_SOAP_PROVIDER=fake`.
+You need Python 3.12+, [`uv`](https://docs.astral.sh/uv/), Node 20+, the [`gcloud` CLI](https://cloud.google.com/sdk/docs/install), and `pango` for PDF rendering (`brew install pango` on macOS). Then set up your own Google Cloud and Firebase project as below. To try the app without any cloud AI calls, set `AUDIO_TO_SOAP_PROVIDER=fake` in `backend/.env`.
+
+### Google Cloud and Firebase setup
+
+1. **Create the project.** In the [Firebase console](https://console.firebase.google.com/), click *Add project*. This also creates a Google Cloud project with the same ID; note it down (for example `my-soapnotes-123`).
+2. **Turn on billing.** In the [Google Cloud console](https://console.cloud.google.com/billing), link a billing account to the project. Vertex AI and Cloud Storage need it. New accounts get free credits.
+3. **Enable the APIs.**
+   ```bash
+   gcloud auth login
+   gcloud config set project YOUR_PROJECT_ID
+   gcloud services enable aiplatform.googleapis.com firestore.googleapis.com storage.googleapis.com
+   ```
+4. **Set up Firebase services** (Firebase console):
+   - *Build → Authentication → Get started*: enable **Email/Password** (and **Google** and **Phone** if you want those sign-in options).
+   - *Build → Firestore Database → Create database*: production mode, region of your choice.
+   - *Build → Storage → Get started*.
+   - *Project settings → General → Your apps → Add app → Web*: copy the config values into `mobile/.env`.
+5. **Check Gemini access.** Open [Vertex AI Studio](https://console.cloud.google.com/vertex-ai/studio) in the same project and send any test prompt to `gemini-2.5-flash` once. This accepts the generative-AI terms for the project. Keep `VERTEX_LOCATION=us-central1` unless you have a reason to change it.
+6. **Give the backend credentials.** Use Application Default Credentials, so no key file is needed:
+   ```bash
+   gcloud auth application-default login
+   gcloud auth application-default set-quota-project YOUR_PROJECT_ID
+   ```
+   Your Google account needs the *Vertex AI User*, *Cloud Datastore User*, *Storage Object Admin* and *Firebase Authentication Admin* roles (project owners already have them). Leave `GOOGLE_APPLICATION_CREDENTIALS` empty. Never download or commit service-account key files.
+7. **Fill in `backend/.env`.** Set `FIREBASE_PROJECT_ID`, `VERTEX_PROJECT_ID` (usually the same ID) and `FIREBASE_STORAGE_BUCKET` (shown on the Storage page).
+8. **Deploy the security rules.**
+   ```bash
+   cd firebase
+   npx firebase-tools deploy --only firestore:rules,storage --project YOUR_PROJECT_ID
+   ```
 
 **Backend**
 
 ```bash
 cd backend
-cp .env.example .env        # fill in your own project IDs
+cp .env.example .env        # values from step 7 above
 uv sync
 uv run uvicorn app.main:app --reload --port 8000
 ```
-
-The backend uses Application Default Credentials (`gcloud auth application-default login`), so no key file is needed for local development.
 
 **Mobile**
 
 ```bash
 cd mobile
-cp .env.example .env        # your Firebase web config + backend URL
+cp .env.example .env        # Firebase web config (step 4) + backend URL
 npm install
 npx expo start
 ```
@@ -99,14 +157,7 @@ cd backend
 uv run pytest
 ```
 
-**Security rules**
-
-```bash
-cd firebase
-firebase deploy --only firestore:rules,storage
-```
-
-Deployment to Cloud Run is described in [`docs/DEPLOYMENT.md`](docs/DEPLOYMENT.md).
+To deploy the backend to Cloud Run and the web app to Firebase Hosting, see [`docs/DEPLOYMENT.md`](docs/DEPLOYMENT.md).
 
 ## Security and privacy
 
