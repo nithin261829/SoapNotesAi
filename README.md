@@ -1,6 +1,6 @@
 # SoapNotesAi
 
-Voice-to-SOAP-note app for clinicians. A doctor records the patient visit on their phone. One multimodal AI call turns the audio into a verbatim transcript and a structured **SOAP note** (Subjective, Objective, Assessment, Plan). The note is checked against a strict schema, saved to the patient's chart, and can be printed as a PDF on the clinic's letterhead.
+AI-native, voice-to-SOAP-note app for clinicians. A doctor records the patient visit on their phone. One multimodal AI call turns the audio into a verbatim transcript and a structured **SOAP note** (Subjective, Objective, Assessment, Plan). The note is checked against a strict schema, saved to the patient's chart, and can be printed as a PDF on the clinic's letterhead.
 
 Full-stack project: **React Native (Expo) mobile + web app**, a **Python FastAPI backend**, **Firebase** for auth and data, and **Gemini 2.5 on Vertex AI** for the AI. The backend runs on Google Cloud Run.
 
@@ -14,6 +14,65 @@ Full-stack project: **React Native (Expo) mobile + web app**, a **Python FastAPI
 - **Multi-tenant.** Organizations → clinics → patients → cases. Every request is scoped by a verified Firebase ID token, and Firestore/Storage rules enforce the same boundary.
 - **Production features.** Clinic letterhead PDFs, follow-up cases, patient reminders with push notifications, phone OTP sign-in, staff invites, doctor verification, per-clinic billing with Razorpay, and per-note AI cost tracking.
 - **Tested and deployed.** 63 backend tests (pytest), Docker image on Cloud Run, Expo web build on Firebase Hosting.
+
+## AI architecture
+
+The core of the product is an AI step: a multimodal large language model listens to the raw consultation audio and writes the structured clinical note. Everything else in the system exists to feed that model safely and to store and use its output.
+
+### One multimodal call instead of a two-model pipeline
+
+```mermaid
+flowchart LR
+    subgraph T["Typical approach: 2 models"]
+        direction LR
+        A1["🎙️ Audio"] --> S1["Speech-to-text model"] --> X1["Plain text"] --> L1["LLM"] --> O1["Structured note"]
+    end
+    subgraph S["SoapNotesAi: 1 multimodal model"]
+        direction LR
+        A2["🎙️ Audio"] --> G["🧠 Gemini 2.5 Flash<br/>hears audio directly"] --> O2["Transcript + language<br/>+ structured SOAP JSON"]
+    end
+```
+
+The model works from the speech itself, including code-switched speech, instead of from a speech-to-text transcript that may already contain errors. One call also means one network round trip, one bill and one place where errors can happen.
+
+### The AI stack
+
+| Layer | Implementation | Where |
+|---|---|---|
+| **Model** | Gemini 2.5 Flash (multimodal LLM) on Google Vertex AI; Gemini 2.5 Pro via one env var | `VERTEX_MODEL` in `backend/.env` |
+| **Input** | Raw audio bytes (m4a/mp4/wav/mp3/webm) sent with the prompt, no pre-transcription | `backend/app/providers/vertex_gemini.py` |
+| **Prompt engineering** | Medical-scribe role, step-by-step task (transcribe, then extract), multilingual rules, clinical-safety rules, exact JSON template | `_PROMPT_TEMPLATE` in `vertex_gemini.py` |
+| **Structured output** | `response_mime_type="application/json"`, fixed SOAP template, `temperature=0.1` for factual, repeatable answers | `vertex_gemini.py` |
+| **Validation guardrail** | Model output parsed and checked against the `SoapNote` Pydantic schema; anything that does not fit is rejected, never saved | `backend/app/models/soap.py` |
+| **Error taxonomy** | Stable codes: `no_response`, `content_blocked`, `invalid_json`, `schema_validation_failed`, `quota_exceeded`, `provider_error` | `backend/app/interfaces/audio_to_soap.py` |
+| **Provider abstraction** | `AudioToSoap` Protocol, so the model can be swapped (or split back into STT + LLM) without touching callers; a fake provider runs the tests | `backend/app/interfaces/`, `backend/app/providers/` |
+| **Provenance** | Each note is stamped with provider, model version and a `validated` flag | `vertex_gemini.py` |
+| **Cost observability** | Prompt and output token counts stored per note to track AI cost | `backend/app/routers/audio.py` |
+| **Privacy** | AI errors and logs record error codes and field paths only, never patient text | `vertex_gemini.py` |
+
+### What the prompt teaches the model
+
+- **Multilingual, code-switched speech.** Transcribe English, Hindi, Telugu and Kannada verbatim in their own scripts, detect the dominant language, but always write the SOAP note in formal clinical English.
+- **Clinical normalization.** Map everyday complaints to medical terms (*"bukhaar"* → fever, *"saans phoolna"* → dyspnea on exertion), convert spoken numbers (*"dedh sau"* → 150), and keep the patient's own words in quotes when a term is ambiguous.
+- **Do-not-hallucinate rules.** Never invent vitals, diagnoses, doses or findings; anything not said is left `null` or empty; dosages are copied exactly as spoken; silent or non-clinical audio returns an empty note.
+
+### What the model returns
+
+```json
+{
+  "transcript": "verbatim text in the language(s) spoken",
+  "language": "te",
+  "soap": {
+    "patient":    { "name": "…", "age": 52, "sex": "female", "encounter_date": "2026-08-01" },
+    "subjective": { "chief_complaint": "…", "symptoms": [], "current_medications": [], "allergies": [] },
+    "objective":  { "vitals": { "blood_pressure": "…", "spo2_percent": null }, "findings": [] },
+    "assessment": { "impressions": [], "diagnoses": [] },
+    "plan":       { "medications": [], "tests_ordered": [], "follow_up": "…" }
+  }
+}
+```
+
+The validated note then drives the rest of the app: the patient record is auto-created from the extracted demographics, the case is titled from the chief complaint, and the PDF is rendered from the structured fields.
 
 ## System architecture
 
