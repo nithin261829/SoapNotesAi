@@ -41,5 +41,3 @@ google-credentials*.json
 docs/
 deploy/k8s-archive/
 README.md
-soap-notes-app-claude-code-prompt.md
-.claude/

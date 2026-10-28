@@ -52,3 +52,10 @@ backend/.env
 mobile/.env
 *firebase-adminsdk*.json
 mobile/android/app/google-services.json
+
+# Local tooling / machine-specific
+.claude/
+.mcp.json
+CLAUDE.md
+mobile/ios/.xcode.env.local
+*.local.json

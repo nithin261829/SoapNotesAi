@@ -3,22 +3,19 @@
 ## High-level flow
 
 ```
-┌────────────────┐     1. record m4a       ┌──────────────────┐
-│ Mobile (Expo)  │  ─────────────────────▶ │ FastAPI backend  │
-│  Record tab    │  ◀───── progress ────── │                  │
-└────────────────┘                         │  ┌────────────┐  │
-                                           │  │ Pipeline   │  │
-                                           │  │            │  │
-                                           │  │ 2. Storage │──┼──▶ Cloud Storage for Firebase
-                                           │  │ 3. STT     │──┼──▶ Google Cloud Speech-to-Text
-                                           │  │ 4. LLM     │──┼──▶ Vertex AI (Gemini)
-                                           │  │ 5. PDF     │──┼──▶ WeasyPrint
-                                           │  │ 6. Save    │──┼──▶ Firestore + Storage
-                                           │  └────────────┘  │
-                                           └──────────────────┘
+┌────────────────┐  1. record m4a + ID token  ┌────────────────────────┐
+│ Mobile (Expo)  │ ─────────────────────────▶ │ FastAPI backend        │
+│  Record tab    │ ◀─── transcript + SOAP ─── │ POST /v1/audio/upload  │
+└────────────────┘                            │                        │
+                                              │ 2. Audio → SOAP ───────┼──▶ Vertex AI Gemini 2.5 (one multimodal call)
+                                              │ 3. Validate (Pydantic) │
+                                              │ 4. Save audio ─────────┼──▶ Cloud Storage for Firebase
+                                              │ 5. Save chart ─────────┼──▶ Firestore
+                                              │ 6. PDF on demand ──────┼──▶ WeasyPrint
+                                              └────────────────────────┘
 ```
 
-All four external services sit behind a Python `Protocol` in `backend/app/interfaces/`. The Google implementations live in `backend/app/providers/` and are wired via `backend/app/config.py`. To swap a provider (e.g. self-hosted Whisper instead of Google STT), add a new class implementing the Protocol and switch the wiring — no caller changes.
+Gemini 2.5 is multimodal, so one call returns both the verbatim transcript and the structured SOAP note; there is no separate speech-to-text step. That call sits behind the `AudioToSoap` Protocol in `backend/app/interfaces/audio_to_soap.py`, with the Vertex implementation in `backend/app/providers/vertex_gemini.py` and a `fake` provider for tests, selected by `AUDIO_TO_SOAP_PROVIDER`. To swap the model (or split STT and LLM again), add a class implementing the Protocol — no caller changes.
 
 ## Auth flow
 
@@ -33,7 +30,7 @@ The backend never trusts the client for `clinicId` or `uid` — it reads them fr
 
 Top-level: `clinics/{clinicId}`. Everything else (doctors, patients, recordings, SOAP notes, audit) is nested under a clinic. Firestore rules check `request.auth.token.clinicId == clinicId`. Storage rules mirror that.
 
-See `docs/soap-notes-app-claude-code-prompt.md` for the full collection layout and SOAP schema.
+The SOAP schema lives in `backend/app/models/soap.py`.
 
 ## Pipeline status machine
 
