@@ -49,7 +49,7 @@ The apps never talk to the AI or the database directly for clinical data. Every 
 ## How the audio becomes a SOAP note
 
 ```mermaid
-flowchart LR
+flowchart TB
     A["📱 Expo app<br/>record .m4a<br/>(expo-audio)"] -->|"multipart upload<br/>+ Firebase ID token"| B["FastAPI<br/>POST /v1/audio/upload"]
     B --> C{"Checks<br/>auth · MIME · size<br/>duration · billing"}
     C --> D["AudioToSoap provider<br/>Vertex AI Gemini 2.5 Flash<br/>audio + prompt → JSON"]
