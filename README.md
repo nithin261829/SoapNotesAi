@@ -1,5 +1,14 @@
 # SoapNotesAi
 
+[![Gemini 2.5 Flash](https://img.shields.io/badge/AI_model-Gemini_2.5_Flash-8E75B2?logo=googlegemini&logoColor=white)](https://cloud.google.com/vertex-ai/generative-ai/docs/models)
+[![Vertex AI SDK](https://img.shields.io/badge/SDK-Vertex_AI_SDK_for_Python_%28google--cloud--aiplatform%29-4285F4?logo=googlecloud&logoColor=white)](https://cloud.google.com/vertex-ai/docs/python-sdk/use-vertex-ai-python-sdk)
+[![FastAPI](https://img.shields.io/badge/Backend-FastAPI_·_Python_3.12-009688?logo=fastapi&logoColor=white)](backend/)
+[![Expo](https://img.shields.io/badge/App-React_Native_·_Expo_54-000020?logo=expo&logoColor=white)](mobile/)
+[![Cloud Run](https://img.shields.io/badge/Deploy-Cloud_Run_·_Firebase-FFCA28?logo=firebase&logoColor=black)](docs/DEPLOYMENT.md)
+[![Secret scan](https://github.com/nithin261829/SoapNotesAi/actions/workflows/secret-scan.yml/badge.svg)](https://github.com/nithin261829/SoapNotesAi/actions/workflows/secret-scan.yml)
+
+> **AI at a glance:** the backend calls **Gemini 2.5 Flash** through the **Google Vertex AI SDK for Python** (`google-cloud-aiplatform`). One multimodal call turns raw consultation audio into a transcript plus a structured SOAP note (JSON), which is validated with Pydantic. No agent framework (ADK, LangChain) and no OpenAI SDK. Details in [AI architecture](#ai-architecture).
+
 AI-native, voice-to-SOAP-note app for clinicians. A doctor records the patient visit on their phone. One multimodal AI call turns the audio into a verbatim transcript and a structured **SOAP note** (Subjective, Objective, Assessment, Plan). The note is checked against a strict schema, saved to the patient's chart, and can be printed as a PDF on the clinic's letterhead.
 
 Full-stack project: **React Native (Expo) mobile + web app**, a **Python FastAPI backend**, **Firebase** for auth and data, and **Gemini 2.5 on Vertex AI** for the AI. The backend runs on Google Cloud Run.
