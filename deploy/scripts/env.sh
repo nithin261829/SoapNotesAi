@@ -23,6 +23,7 @@ set -euo pipefail
 : "${CONCURRENCY:=80}"
 : "${MIN_INSTANCES:=0}"   # scale to zero when idle; MIN_INSTANCES=1 keeps one warm (~Rs.500-800/mo, billed 24/7)
 : "${MAX_INSTANCES:=10}"  # safety cap so a runaway can't bankrupt us
+: "${KEEP_TAGS:=1}"       # revision tags kept after a deploy; each one stays warm if MIN_INSTANCES > 0
 : "${MEMORY:=1Gi}"
 : "${CPU:=1}"
 : "${TIMEOUT:=300}"       # request timeout in seconds (AI calls can be slow)
