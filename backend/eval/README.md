@@ -51,11 +51,19 @@ follow-up, and the facts a good interval history should state (with the records
 each fact needs). Every note is validated against `SoapNote`.
 
 ```bash
-uv run python -m eval.history_cases --n 12 --project <vertex project>   # ~$0.03 per patient
-uv run python -m eval.history_eval --project <vertex project>          # embeddings + comparer + judge
+uv run python -m eval.history_cases --n 12 --project <vertex project>   # 12 patients cost $1.04 (Gemini 3.1 Pro)
+uv run python -m eval.history_eval --project <vertex project> --tag -v2 # comparer + judge, ~$0.35
 ```
 
 All patients go into one shared store, so the run also checks that no chunk from
-another patient is ever retrieved. Reported: retrieval recall of the needed
-records, expected facts covered, statements supported by their citations,
-citations of the unrelated records, and statements the citation guardrail dropped.
+another patient ever reaches the comparer. Reported: recall of the records the
+expected facts need, expected facts stated with their values (and stated only in
+part), statements supported by their citations, statements that are unsupported,
+contradicted or misleading, citations of the unrelated records, and statements
+the citation guardrail dropped.
+
+Read the judge's labels against the records by hand before quoting them: in the
+first run (`runs/2026-11-01-history-gemini-2.5-flash/review.md`) the judge
+counted 7/52 expected facts covered where a hand count found 15, and passed a
+misleading medication statement. That review also drove the retrieval and
+prompt changes.

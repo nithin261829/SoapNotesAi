@@ -3,7 +3,7 @@ from __future__ import annotations
 
 import math
 
-from app.interfaces.history import HistoryChunk, PatientKey
+from app.interfaces.history import HistoryChunk, PatientKey, SourceKind
 
 
 def _cosine(a: list[float], b: list[float]) -> float:
@@ -25,10 +25,15 @@ class InMemoryHistoryStore:
             bucket[chunk.id] = (chunk, vector)
 
     def search(self, patient: PatientKey, vector: list[float], *, limit: int,
+               source: SourceKind | None = None,
                exclude_source_id: str | None = None) -> list[HistoryChunk]:
         scored = [(_cosine(vector, v), c) for c, v in self._chunks.get(patient, {}).values()
-                  if c.source_id != exclude_source_id]
+                  if c.source_id != exclude_source_id and source in (None, c.source)]
         return [c for _, c in sorted(scored, key=lambda x: x[0], reverse=True)[:limit]]
+
+    def get(self, patient: PatientKey, source_ids: list[str]) -> list[HistoryChunk]:
+        wanted = set(source_ids)
+        return [c for c, _ in self._chunks.get(patient, {}).values() if c.source_id in wanted]
 
     def remove(self, patient: PatientKey, source_id: str) -> None:
         bucket = self._chunks.get(patient, {})

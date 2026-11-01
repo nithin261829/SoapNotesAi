@@ -3,8 +3,9 @@
 A patient's earlier SOAP notes (one chunk per section) and uploaded documents
 (scanned reports, past records; text read by the model) are embedded and stored
 under that patient's own Firestore path, so a search can only ever return that
-patient's history. On a follow-up, the new note is compared with the closest
-chunks and every comparison statement must cite the chunks it rests on.
+patient's history. On a follow-up, the closest earlier visits (in full) and
+report parts are compared with the new note, and every comparison statement
+must cite the chunks it rests on.
 """
 from __future__ import annotations
 
@@ -46,8 +47,13 @@ class HistoryStore(Protocol):
             vectors: list[list[float]]) -> None: ...
 
     def search(self, patient: PatientKey, vector: list[float], *, limit: int,
+               source: SourceKind | None = None,
                exclude_source_id: str | None = None) -> list[HistoryChunk]:
-        """Nearest chunks of this patient only, closest first."""
+        """Nearest chunks of this patient only, closest first; `source` limits the kind."""
+        ...
+
+    def get(self, patient: PatientKey, source_ids: list[str]) -> list[HistoryChunk]:
+        """Every chunk of the given notes or documents (at most 30 IDs)."""
         ...
 
     def remove(self, patient: PatientKey, source_id: str) -> None:

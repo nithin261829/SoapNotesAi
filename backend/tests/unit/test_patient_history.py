@@ -9,7 +9,15 @@ import math
 from datetime import date
 
 from app.interfaces.history import HistoryChunk, PatientKey
-from app.models.soap import Assessment, PatientMeta, Plan, SoapNote, Subjective
+from app.models.soap import (
+    Assessment,
+    HistorySource,
+    HistoryStatement,
+    PatientMeta,
+    Plan,
+    SoapNote,
+    Subjective,
+)
 from app.providers.history_memory import InMemoryHistoryStore
 from app.services.patient_history import (
     DOCUMENT_PART_CHARS,
@@ -135,3 +143,65 @@ def test_current_note_and_deleted_documents_are_not_retrieved():
     history.interval_history(ALICE, knee_note("knee pain 3/10", "continue"),
                              recording_id="alice-2")
     assert comparer.seen == []
+
+
+def test_whole_earlier_visit_is_passed_not_just_matching_sections():
+    history, comparer = make_history()
+    note = knee_note("knee pain 6/10 on stairs", "clamshells and straight leg raises")
+    history.index_note(ALICE, note, recording_id="alice-1", encounter_date="2026-06-28")
+    history.interval_history(ALICE, knee_note("knee pain 3/10 on stairs", "continue"),
+                             recording_id="alice-2")
+    # The plan shares no words with today's complaint, yet the exercise program is there.
+    assert {c.part for c in comparer.seen} == {"subjective", "assessment", "plan"}
+
+
+def test_reports_are_searched_separately_so_visits_cannot_crowd_them_out():
+    history, comparer = make_history()
+    for i in range(1, 6):
+        history.index_note(ALICE, knee_note(f"knee pain {9 - i}/10 on stairs", "quads"),
+                           recording_id=f"alice-{i}", encounter_date=f"2026-06-0{i}")
+    history.index_document(ALICE, document_id="xray", file_bytes=b"X-ray: lateral patellar tilt",
+                           mime_type="image/jpeg", date="2026-05-30", label="Knee X-ray")
+    history.interval_history(ALICE, knee_note("knee pain 2/10 on stairs", "continue"),
+                             recording_id="alice-6")
+    visits = {c.source_id for c in comparer.seen if c.source == "note"}
+    assert len(visits) == 3  # capped at note_records
+    assert [c.source_id for c in comparer.seen if c.source == "document"] == ["xray"]
+
+
+def test_sources_collapse_to_one_per_visit():
+    history, _ = make_history(lambda sources: [
+        ("Pain 6/10 then, 3/10 now; same exercises.",
+         ["note-alice-1-subjective", "note-alice-1-plan"]),
+    ])
+    history.index_note(ALICE, knee_note("knee pain 6/10", "quad strengthening"),
+                       recording_id="alice-1", encounter_date="2026-06-28")
+    [statement] = history.interval_history(ALICE, knee_note("knee pain 3/10", "continue"),
+                                           recording_id="alice-2")
+    assert [(s.source_id, s.label) for s in statement.sources] == [("alice-1", "Visit")]
+
+
+def _render_pdf_html(soap: SoapNote) -> str:
+    from app.routers.soap import _jinja
+
+    return _jinja.get_template("soap_note.html").render(
+        patient=soap.patient, subjective=soap.subjective, objective=soap.objective,
+        assessment=soap.assessment, plan=soap.plan, interval_history=soap.interval_history,
+        transcript="", clinic={"letterhead": {"name": "Clinic"}},
+        doctor={"display_name": "Dr A", "verified": False}, generated_at="now")
+
+
+def test_pdf_shows_interval_history_with_its_sources():
+    soap = knee_note("knee pain 3/10", "continue")
+    soap.interval_history = [HistoryStatement(text="Knee pain 3/10, down from 6/10.", sources=[
+        HistorySource(source="note", source_id="r1", date="2026-06-28", label="Visit"),
+        HistorySource(source="document", source_id="d1", date="2026-06-20", label="MRI <knee>"),
+    ])]
+    html = _render_pdf_html(soap)
+    assert "Interval history" in html
+    assert "Knee pain 3/10, down from 6/10." in html
+    assert "(Visit, 2026-06-28; MRI &lt;knee&gt;, 2026-06-20)" in html  # escaped label
+
+
+def test_pdf_has_no_interval_history_section_on_first_visits():
+    assert "Interval history" not in _render_pdf_html(knee_note("knee pain 6/10", "rest"))

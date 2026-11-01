@@ -3,11 +3,11 @@
 For every patient, the earlier visits (including the unrelated one) and both
 documents are indexed with the production embedder into one shared in-memory
 store, then `PatientHistory.interval_history` runs on today's note with the
-production comparer. Scored:
-  - retrieval recall: share of the records the expected facts need that were retrieved
-  - distractors: retrieved or cited chunks from the unrelated visit or document
-  - leakage: retrieved chunks from another patient (must be 0)
-  - statements a judge finds supported by their citations, and expected facts covered
+production comparer and retrieval settings. Scored:
+  - retrieval recall: share of the records the expected facts need that reached the comparer
+  - distractors: the unrelated visit or report passed to the comparer, or cited
+  - leakage: chunks from another patient passed to the comparer (must be 0)
+  - statements a judge finds supported, and expected facts covered or partly covered
   - statements the citation guardrail dropped
 
 Usage (from backend/, after eval.history_cases):
@@ -28,6 +28,7 @@ from app.interfaces.history import HistoryChunk, PatientKey
 from app.models.soap import SoapNote
 from app.providers.history_memory import InMemoryHistoryStore
 from app.services.patient_history import PatientHistory, note_text
+from eval.run_eval import cost_usd
 
 HERE = Path(__file__).parent
 
@@ -43,9 +44,16 @@ EXPECTED FACTS (what a good interval history should say):
 {expected}
 
 Return JSON only:
-{{"statements": [{{"index": 0, "label": "supported"}}], "expected": [{{"index": 0, "covered": true}}]}}
-- label each statement "supported" (today's note plus its cited records back it), "unsupported" (adds or guesses something) or "contradicted" (conflicts with them).
-- covered is true when some statement conveys that expected fact, in any wording.
+{{"statements": [{{"index": 0, "label": "supported"}}], "expected": [{{"index": 0, "coverage": "covered"}}]}}
+- label each statement:
+  "supported": today's note plus its cited records back every part of it;
+  "unsupported": it adds or guesses something they do not say;
+  "contradicted": it conflicts with them;
+  "misleading": every part is in the records, but read as the patient's current status it is wrong (e.g. an earlier dose presented as what the patient takes now, when today's note says it stopped).
+- coverage of each expected fact:
+  "covered": a statement makes the same comparison with its key values; a comparison against a different earlier visit than the fact names still counts;
+  "partial": a statement makes the comparison without the key values, or covers only part of the fact;
+  "missing": no statement conveys it.
 """
 
 
@@ -76,7 +84,7 @@ def run_patient(case: dict[str, Any], store: InMemoryHistoryStore, embedder: Any
     key = PatientKey("eval-org", "eval-clinic", pid)
     comparer = RecordingComparer(comparer_model)
     history = PatientHistory(store=store, embedder=embedder, comparer=comparer,
-                             reader=TextReader())
+                             reader=TextReader())  # production retrieval settings
     today = SoapNote.model_validate(case["today"])
     t0 = time.perf_counter()
     statements = history.interval_history(key, today, recording_id=f"{pid}-today")
@@ -86,10 +94,10 @@ def run_patient(case: dict[str, Any], store: InMemoryHistoryStore, embedder: Any
     retrieved = {c.source_id for c in comparer.seen}
     return {
         "id": pid, "condition": case["condition"], "latency_s": round(latency, 1),
-        "retrieved": len(comparer.seen),
+        "retrieved": len(retrieved),
         "needed": len(needed),
         "needed_retrieved": len({f"{pid}-{s}" for s in needed} & retrieved),
-        "distractor_retrieved": sum(c.source_id in distractors for c in comparer.seen),
+        "distractor_retrieved": len(retrieved & distractors),
         "leaked": sum(not c.source_id.startswith(f"{pid}-") for c in comparer.seen),
         "statements": [s.model_dump(mode="json") for s in statements],
         "dropped": len(comparer.raw) - len(statements),
@@ -100,7 +108,7 @@ def run_patient(case: dict[str, Any], store: InMemoryHistoryStore, embedder: Any
     }
 
 
-def judge(model: Any, case: dict[str, Any], row: dict[str, Any]) -> dict[str, int]:
+def judge(model: Any, case: dict[str, Any], row: dict[str, Any]) -> dict[str, float]:
     from vertexai.generative_models import GenerationConfig
 
     lines = []
@@ -115,10 +123,17 @@ def judge(model: Any, case: dict[str, Any], row: dict[str, Any]) -> dict[str, in
         generation_config=GenerationConfig(response_mime_type="application/json",
                                            temperature=0, max_output_tokens=16384))
     verdict = json.loads(response.text)
+    u = response.usage_metadata
+    spent = cost_usd(model._model_name.split("/")[-1], u.prompt_token_count,
+                     u.candidates_token_count + (getattr(u, "thoughts_token_count", 0) or 0))
     labels = [str(s.get("label", "")).lower() for s in verdict.get("statements") or []]
+    coverage = [str(e.get("coverage", "")).lower() for e in verdict.get("expected") or []]
     return {"supported": labels.count("supported"), "unsupported": labels.count("unsupported"),
-            "contradicted": labels.count("contradicted"),
-            "expected_covered": sum(bool(e.get("covered")) for e in verdict.get("expected") or [])}
+            "contradicted": labels.count("contradicted"), "misleading": labels.count("misleading"),
+            "labels": labels, "coverage": coverage,
+            "expected_covered": coverage.count("covered"),
+            "expected_partial": coverage.count("partial"),
+            "judge_cost_usd": spent}
 
 
 def report(rows: list[dict[str, Any]], args: argparse.Namespace) -> str:
@@ -133,25 +148,31 @@ def report(rows: list[dict[str, Any]], args: argparse.Namespace) -> str:
         "",
         f"{len(rows)} synthetic physiotherapy patients ({args.cases_model}-written), each with 2 "
         "earlier visits, 1 unrelated visit, 1 relevant and 1 unrelated scanned report. "
-        f"Embeddings: {args.embedding_model}; top {args.limit} chunks; judge: {args.judge}. "
+        f"Embeddings: {args.embedding_model}; up to {PatientHistory.note_records} earlier visits "
+        f"in full + {PatientHistory.document_parts} report parts; judge: {args.judge}. "
         f"Run {date.today()}.",
         "",
         "| Metric | Result |",
         "|---|---|",
-        f"| Records needed by expected facts that were retrieved | "
+        f"| Records needed by expected facts that reached the comparer | "
         f"{pct(total('needed_retrieved'), total('needed'))} |",
-        f"| Expected facts the interval history states | {pct(total('expected_covered'), expected)} |",
+        f"| Expected facts stated with their values | {pct(total('expected_covered'), expected)} |",
+        f"| Expected facts stated, values missing or only in part | "
+        f"{pct(total('expected_partial'), expected)} |",
         f"| Statements supported by their citations | {pct(total('supported'), stmts)} |",
-        f"| Statements unsupported / contradicted | {total('unsupported')} / {total('contradicted')} |",
+        f"| Statements unsupported / contradicted / misleading | {total('unsupported')} / "
+        f"{total('contradicted')} / {total('misleading')} |",
         f"| Statements citing the unrelated visit or report | {total('distractor_cited')} |",
-        f"| Retrieved chunks from the unrelated visit or report | "
-        f"{pct(total('distractor_retrieved'), total('retrieved'))} |",
-        f"| Retrieved chunks from another patient | {total('leaked')} |",
+        f"| Unrelated visit or report passed to the comparer | "
+        f"{pct(total('distractor_retrieved'), 2 * len(rows))} |",
+        f"| Chunks from another patient passed to the comparer | {total('leaked')} |",
         f"| Statements dropped by the citation guardrail | {total('dropped')} |",
         f"| Latency per follow-up (median) | {statistics.median(r['latency_s'] for r in rows):.1f} s |",
         "",
         "Caveats: patients and expected facts are LLM-written; the judge is an LLM and its "
-        "labels should be spot-checked.",
+        "labels should be spot-checked. With only 3 earlier visits and 2 reports per patient, "
+        "the visit and report caps exclude little, so this mostly tests the comparer, not "
+        "retrieval ranking.",
     ]) + "\n"
 
 
@@ -164,7 +185,7 @@ def main() -> None:
     ap.add_argument("--judge", default="gemini-3.1-pro-preview")
     ap.add_argument("--judge-location", default="global")
     ap.add_argument("--cases-model", default="gemini-3.1-pro-preview")
-    ap.add_argument("--limit", type=int, default=6)
+    ap.add_argument("--tag", default="", help="suffix for the run folder, e.g. -v2")
     args = ap.parse_args()
 
     import vertexai
@@ -179,7 +200,7 @@ def main() -> None:
     store = InMemoryHistoryStore()
     embedder = VertexTextEmbedder(model=args.embedding_model)
     indexer = PatientHistory(store=store, embedder=embedder, comparer=None,  # type: ignore[arg-type]
-                             reader=TextReader(), limit=args.limit)
+                             reader=TextReader())
     for case in cases:
         key = PatientKey("eval-org", "eval-clinic", case["id"])
         for visit in case["visits"]:
@@ -199,7 +220,7 @@ def main() -> None:
     for case, row in zip(cases, rows, strict=True):
         row.update(judge(judge_model, case, row), expected_total=len(case["expected"]))
 
-    run = f"{date.today()}-history-{args.comparer}"
+    run = f"{date.today()}-history-{args.comparer}{args.tag}"
     raw = HERE / ".cache" / "runs" / run
     raw.mkdir(parents=True, exist_ok=True)
     (raw / "rows.json").write_text(json.dumps(rows, indent=1))
@@ -207,7 +228,7 @@ def main() -> None:
     out.mkdir(parents=True, exist_ok=True)
     fields = ["id", "condition", "retrieved", "needed", "needed_retrieved", "distractor_retrieved",
               "leaked", "dropped", "distractor_cited", "supported", "unsupported", "contradicted",
-              "expected_covered", "expected_total", "latency_s"]
+              "misleading", "expected_covered", "expected_partial", "expected_total", "latency_s"]
     with (out / "scores.csv").open("w", newline="") as f:
         w = csv.DictWriter(f, fieldnames=fields, extrasaction="ignore")
         w.writeheader()
@@ -215,6 +236,7 @@ def main() -> None:
     text = report(rows, args)
     (out / "report.md").write_text(text)
     print(text)
+    print(f"judge cost: ${sum(r['judge_cost_usd'] for r in rows):.2f}")
 
 
 if __name__ == "__main__":

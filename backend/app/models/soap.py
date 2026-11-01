@@ -118,7 +118,7 @@ class Plan(FirestoreModel):
 
 
 class HistorySource(FirestoreModel):
-    """An earlier note section or uploaded document that a history statement cites."""
+    """An earlier visit note or uploaded document that a history statement cites."""
     source: Literal["note", "document"]
     source_id: str
     date: Optional[str] = None

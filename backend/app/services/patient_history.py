@@ -4,9 +4,12 @@ Indexing: each saved SOAP note becomes one chunk per non-empty section; each
 uploaded document is read to text and split into ~1,200-character parts. Chunks
 are embedded and stored under the patient (see `app.interfaces.history`).
 
-Follow-ups: the new note's subjective + assessment is the query; the closest
-chunks go to the comparer, and any statement that does not cite a retrieved
-chunk is dropped, so the note never shows history it cannot point to.
+Follow-ups: the new note's subjective + assessment is the query. Note sections
+are ranked by similarity and the top earlier visits go to the comparer in full
+(a plan section rarely matches the query but holds the exercise progression);
+report parts are searched separately so visit notes cannot crowd them out. Any
+statement that does not cite a retrieved chunk is dropped, so the note never
+shows history it cannot point to.
 """
 from __future__ import annotations
 
@@ -85,7 +88,9 @@ class PatientHistory:
     embedder: Embedder
     comparer: HistoryComparer
     reader: DocumentReader
-    limit: int = 6
+    note_records: int = 3       # earlier visits passed in full
+    document_parts: int = 2     # report parts passed
+    section_limit: int = 12     # note sections ranked to pick those visits
 
     def _index(self, patient: PatientKey, chunks: list[HistoryChunk]) -> int:
         if chunks:
@@ -113,8 +118,15 @@ class PatientHistory:
         if not query:
             return []
         [vector] = self.embedder.embed([query], task="query")
-        sources = self.store.search(patient, vector, limit=self.limit,
-                                    exclude_source_id=recording_id)
+        sections = self.store.search(patient, vector, limit=self.section_limit, source="note",
+                                     exclude_source_id=recording_id)
+        visits = list(dict.fromkeys(c.source_id for c in sections))[: self.note_records]
+        order = {s: i for i, s in enumerate(SECTIONS)}
+        notes = sorted(self.store.get(patient, visits),
+                       key=lambda c: (c.date, c.source_id, order.get(c.part, len(order))))
+        reports = self.store.search(patient, vector, limit=self.document_parts,
+                                    source="document")
+        sources = notes + reports
         if not sources:
             return []
         by_id = {c.id: c for c in sources}
@@ -124,9 +136,13 @@ class PatientHistory:
             if not text.strip() or not cited:
                 dropped += 1  # uncited or citing something that was never retrieved
                 continue
+            records: dict[tuple[str, str], HistoryChunk] = {}  # one source per visit/report
+            for c in cited:
+                records.setdefault((c.source, c.source_id), c)
             statements.append(HistoryStatement(text=text.strip(), sources=[
-                HistorySource(source=c.source, source_id=c.source_id, date=c.date, label=c.label)
-                for c in cited]))
+                HistorySource(source=c.source, source_id=c.source_id, date=c.date,
+                              label="Visit" if c.source == "note" else c.label)
+                for c in records.values()]))
         if dropped:
             logger.info("interval_history_dropped_uncited count=%d", dropped)  # no PHI
         return statements

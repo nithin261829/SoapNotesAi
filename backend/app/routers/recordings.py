@@ -256,6 +256,7 @@ def render_pdf(recording_id: str, patient_id: str, user: TenantUserDep) -> Strea
             objective=rec.soap.objective,
             assessment=rec.soap.assessment,
             plan=rec.soap.plan,
+            interval_history=rec.soap.interval_history,
             transcript=(rec.transcript.text if rec.transcript else ""),
             clinic={"letterhead": letterhead_ctx},
             sheet="continuation" if is_continuation else "primary",

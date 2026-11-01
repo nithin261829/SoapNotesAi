@@ -63,6 +63,7 @@
     ul.bullets { margin: 4pt 0 4pt 18pt; padding: 0; }
     ul.bullets li { margin: 2pt 0; }
     .empty { color: #999; font-style: italic; }
+    .cites { color: #666; font-size: 8.5pt; }
     .vitals { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6pt; margin-top: 4pt; }
     .vital { border: 1px solid #ddd; border-radius: 3pt; padding: 5pt 7pt; }
     .vital .label {
@@ -271,6 +272,17 @@
     </div>
     {% endif %}
   </section>
+
+  {% if interval_history %}
+  <section class="s">
+    <h2>Interval history</h2>
+    <ul class="bullets">
+      {% for h in interval_history %}
+      <li>{{ h.text }}{% if h.sources %} <span class="cites">({% for s in h.sources %}{{ s.label }}{% if s.date %}, {{ s.date }}{% endif %}{% if not loop.last %}; {% endif %}{% endfor %})</span>{% endif %}</li>
+      {% endfor %}
+    </ul>
+  </section>
+  {% endif %}
 
   <section class="s">
     <h2>Assessment</h2>

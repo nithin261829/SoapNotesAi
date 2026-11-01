@@ -21,6 +21,7 @@ from typing import Any
 from pydantic import ValidationError
 
 from app.models.soap import SoapNote
+from eval.run_eval import cost_usd
 
 CACHE = Path(__file__).parent / ".cache"
 CONDITIONS = [
@@ -55,13 +56,17 @@ Requirements:
 """
 
 
-def generate(model: Any, condition: str, index: int) -> dict[str, Any] | None:
+def generate(model: Any, condition: str, index: int,
+             spent: list[float]) -> dict[str, Any] | None:
     from vertexai.generative_models import GenerationConfig
 
     response = model.generate_content(
         PROMPT.format(condition=condition, shape=SOAP_SHAPE),
         generation_config=GenerationConfig(response_mime_type="application/json",
                                            temperature=0.7, max_output_tokens=32768))
+    u = response.usage_metadata
+    output = u.candidates_token_count + (getattr(u, "thoughts_token_count", 0) or 0)
+    spent.append(cost_usd(model._model_name.split("/")[-1], u.prompt_token_count, output))
     try:
         data = json.loads(response.text)
         for visit in data["visits"]:
@@ -87,12 +92,14 @@ def main() -> None:
     vertexai.init(project=args.project, location=args.location)
     model = GenerativeModel(args.model)
     conditions = CONDITIONS[: args.n]
+    spent: list[float] = []
     with ThreadPoolExecutor(max_workers=4) as pool:
-        cases = [c for c in pool.map(lambda ic: generate(model, ic[1], ic[0] + 1),
+        cases = [c for c in pool.map(lambda ic: generate(model, ic[1], ic[0] + 1, spent),
                                      enumerate(conditions)) if c]
     CACHE.mkdir(exist_ok=True)
     (CACHE / "history_cases.json").write_text(json.dumps(cases, indent=1))
-    print(f"{len(cases)}/{len(conditions)} patients -> {CACHE / 'history_cases.json'}")
+    print(f"{len(cases)}/{len(conditions)} patients -> {CACHE / 'history_cases.json'}"
+          f" (${sum(spent):.2f})")
 
 
 if __name__ == "__main__":

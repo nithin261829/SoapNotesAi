@@ -13,7 +13,7 @@ import logging
 from collections.abc import Callable
 from typing import Any, Literal
 
-from app.interfaces.history import HistoryChunk, PatientKey
+from app.interfaces.history import HistoryChunk, PatientKey, SourceKind
 
 logger = logging.getLogger(__name__)
 
@@ -27,7 +27,11 @@ EARLIER NOTES AND DOCUMENTS (each starts with its source id in brackets):
 TODAY'S NOTE:
 {new_note}
 
-Write at most 5 short statements comparing today with the earlier records: progress, changes in pain or function, response to earlier treatment, relevant past results, plan changes. Rules:
+Write at most 6 short statements comparing today with the earlier records: changes in pain, range of motion, strength, function and special tests; medication changes; how the exercise program or treatment has progressed; findings from scanned reports (imaging, nerve studies, labs) that bear on today's problem. Rules:
+- Give the values on both sides whenever the records have them (pain score, degrees, strength grade, girth, test result, dose, frequency), e.g. "Knee flexion 130 degrees today, up from 90 at the first visit and 110 at the last visit." Do not replace numbers with words like "improved" or "nearly full".
+- Compare with the first visit for this problem and with the most recent one when both exist.
+- Take the patient's current status only from today's note. Never present an earlier medication, dose or finding as current; if today's note shows it has stopped or changed, say so.
+- Skip earlier records about unrelated problems.
 - Use only what today's note and the earlier records say. Never add facts, scores, doses or dates.
 - Every statement must cite the id(s) of the earlier record(s) it relies on, copied exactly.
 - If nothing earlier relates to today's visit, return an empty list.
@@ -43,6 +47,12 @@ def _patient_chunks(db: Any, patient: PatientKey) -> Any:
             .collection("clinics").document(patient.clinic_id)
             .collection("patients").document(patient.patient_id)
             .collection("note_chunks"))
+
+
+def _chunk(snap: Any) -> HistoryChunk:
+    d = snap.to_dict() or {}
+    return HistoryChunk(source=d["source"], source_id=d["source_id"], part=d["part"],
+                        date=d.get("date", ""), label=d.get("label", ""), text=d["text"])
 
 
 class FirestoreHistoryStore:
@@ -62,24 +72,27 @@ class FirestoreHistoryStore:
             })
 
     def search(self, patient: PatientKey, vector: list[float], *, limit: int,
+               source: SourceKind | None = None,
                exclude_source_id: str | None = None) -> list[HistoryChunk]:
         from google.cloud.firestore_v1.base_vector_query import DistanceMeasure
         from google.cloud.firestore_v1.vector import Vector
 
+        col = _patient_chunks(self._get_db(), patient)
+        if source is not None:  # pre-filter: composite vector index on (source, embedding)
+            col = col.where("source", "==", source)
         # Over-fetch by one note's four sections: the current recording's own
         # chunks are filtered out afterwards.
-        query = _patient_chunks(self._get_db(), patient).find_nearest(
+        query = col.find_nearest(
             vector_field="embedding", query_vector=Vector(vector),
             distance_measure=DistanceMeasure.COSINE, limit=limit + 4)
-        found = []
-        for snap in query.stream():
-            d = snap.to_dict() or {}
-            if d.get("source_id") == exclude_source_id:
-                continue
-            found.append(HistoryChunk(source=d["source"], source_id=d["source_id"],
-                                      part=d["part"], date=d.get("date", ""),
-                                      label=d.get("label", ""), text=d["text"]))
-        return found[:limit]
+        found = [_chunk(snap) for snap in query.stream()]
+        return [c for c in found if c.source_id != exclude_source_id][:limit]
+
+    def get(self, patient: PatientKey, source_ids: list[str]) -> list[HistoryChunk]:
+        if not source_ids:
+            return []
+        col = _patient_chunks(self._get_db(), patient)
+        return [_chunk(snap) for snap in col.where("source_id", "in", source_ids[:30]).stream()]
 
     def remove(self, patient: PatientKey, source_id: str) -> None:
         col = _patient_chunks(self._get_db(), patient)
