@@ -41,6 +41,12 @@ class Settings(BaseSettings):
         "vertex_gemini", alias="AUDIO_TO_SOAP_PROVIDER"
     )
 
+    # Patient-history RAG: index notes and uploaded documents, and add a cited
+    # interval history to follow-up notes. Off by default because it adds an
+    # embedding call per note, a Gemini call per follow-up and one per document.
+    patient_history_enabled: bool = Field(False, alias="PATIENT_HISTORY_ENABLED")
+    embedding_model: str = Field("text-embedding-005", alias="EMBEDDING_MODEL")
+
     # Razorpay payment gateway. Endpoints 503 with `payments_not_configured`
     # until key id + secret are set. The key secret and webhook secret must
     # never be shipped to clients — only key_id is public.

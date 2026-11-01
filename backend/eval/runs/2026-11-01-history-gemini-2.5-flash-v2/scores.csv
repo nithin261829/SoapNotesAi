@@ -1,0 +1,13 @@
+id,condition,retrieved,needed,needed_retrieved,distractor_retrieved,leaked,dropped,distractor_cited,supported,unsupported,contradicted,misleading,expected_covered,expected_partial,expected_total,latency_s
+p01,"patellofemoral pain, right knee",5,3,3,2,0,0,0,6,0,0,0,1,2,4,12.2
+p02,mechanical low back pain,5,3,3,2,0,0,0,6,0,0,0,4,0,5,13.8
+p03,"frozen shoulder, left",5,3,3,2,0,0,0,6,0,0,0,2,0,4,14.5
+p04,lateral ankle sprain rehab,5,3,3,2,0,0,0,5,1,0,0,3,1,4,15.4
+p05,"tennis elbow, right",5,3,3,2,0,0,0,6,0,0,0,2,2,4,15.2
+p06,neck pain with desk work,5,2,2,2,0,0,0,6,0,0,0,4,1,5,16.1
+p07,6 weeks after ACL reconstruction,5,3,3,2,0,0,0,6,0,0,0,2,2,4,15.9
+p08,plantar fasciitis,5,3,3,2,0,0,0,6,0,0,0,3,0,4,13.4
+p09,rotator cuff tendinopathy,5,3,3,2,0,0,0,6,0,0,0,3,1,4,15.5
+p10,hip osteoarthritis,5,2,2,2,0,0,0,6,0,0,0,4,0,5,16.4
+p11,carpal tunnel syndrome,5,3,3,2,0,0,0,6,0,0,0,4,0,4,10.2
+p12,lumbar radiculopathy (sciatica),5,3,3,2,0,0,0,6,0,0,0,4,1,5,13.4

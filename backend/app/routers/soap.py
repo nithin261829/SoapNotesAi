@@ -54,6 +54,7 @@ def generate_soap_pdf(body: GeneratePdfRequest) -> StreamingResponse:
             objective=body.soap.objective,
             assessment=body.soap.assessment,
             plan=body.soap.plan,
+            interval_history=body.soap.interval_history,
             transcript=body.transcript or "",
             clinic={"letterhead": {"name": body.clinic_name or "Clinic"}},
             doctor={

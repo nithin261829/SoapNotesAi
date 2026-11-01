@@ -117,6 +117,20 @@ class Plan(FirestoreModel):
     referrals: list[str] = Field(default_factory=list)
 
 
+class HistorySource(FirestoreModel):
+    """An earlier visit note or uploaded document that a history statement cites."""
+    source: Literal["note", "document"]
+    source_id: str
+    date: Optional[str] = None
+    label: str
+
+
+class HistoryStatement(FirestoreModel):
+    """One comparison with the patient's history, e.g. "Knee pain down from 6/10 on Jun 28"."""
+    text: str
+    sources: list[HistorySource] = Field(default_factory=list)
+
+
 class SoapNote(FirestoreModel):
     """Located at clinics/{clinicId}/patients/{patientId}/recordings/{recordingId}/soap/{soapId}."""
     patient: PatientMeta
@@ -124,6 +138,9 @@ class SoapNote(FirestoreModel):
     objective: Objective = Field(default_factory=Objective)
     assessment: Assessment = Field(default_factory=Assessment)
     plan: Plan = Field(default_factory=Plan)
+    # Filled after generation from the patient's earlier notes and documents
+    # (patient-history RAG). Every statement cites at least one source.
+    interval_history: list[HistoryStatement] = Field(default_factory=list)
 
     # Provenance — never hidden from the doctor.
     source_transcript_id: Optional[str] = None

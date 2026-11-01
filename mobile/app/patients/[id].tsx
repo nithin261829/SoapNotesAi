@@ -1,5 +1,6 @@
 import { Feather } from '@expo/vector-icons';
 import * as DocumentPicker from 'expo-document-picker';
+import * as ImagePicker from 'expo-image-picker';
 import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
 import {
@@ -551,6 +552,56 @@ function DocumentsCard({ patientId }: { patientId: string }) {
     }
   };
 
+  const labelAndUpload = async (asset: { uri: string; name: string }, mimeType: string) => {
+    if (Platform.OS === 'ios') {
+      Alert.prompt(
+        'Add a label?',
+        'e.g. "Blood report Mar 2026" — optional.',
+        [
+          { text: 'Skip', onPress: () => void doUpload(asset, mimeType) },
+          {
+            text: 'Attach',
+            onPress: (text?: string) => void doUpload(asset, mimeType, text?.trim() || undefined),
+          },
+        ],
+        'plain-text',
+      );
+    } else {
+      await doUpload(asset, mimeType);
+    }
+  };
+
+  // Paper records (old notes, referral letters, printed reports) are photographed
+  // page by page; each page becomes a document the backend reads and indexes.
+  const scanWithCamera = async () => {
+    if (busy) return;
+    setError(null);
+    const permission = await ImagePicker.requestCameraPermissionsAsync();
+    if (!permission.granted) {
+      setError('Camera access is off. Allow it in Settings to scan paper records.');
+      return;
+    }
+    const result = await ImagePicker.launchCameraAsync({
+      mediaTypes: ['images'],
+      quality: 0.7,
+      exif: false,
+    });
+    if (result.canceled) return;
+    const photo = result.assets[0];
+    if (!photo) return;
+    if (photo.fileSize != null && photo.fileSize > MAX_DOCUMENT_BYTES) {
+      setError('Photo is too large — the limit is 20 MB.');
+      return;
+    }
+    const name = photo.fileName ?? `scan-${new Date().toISOString().slice(0, 10)}.jpg`;
+    const mimeType = documentMimeType(name, photo.mimeType ?? 'image/jpeg');
+    if (!mimeType) {
+      setError('The camera returned an unsupported image format.');
+      return;
+    }
+    await labelAndUpload({ uri: photo.uri, name }, mimeType);
+  };
+
   const pickAndUpload = async () => {
     if (busy) return;
     setError(null);
@@ -571,22 +622,7 @@ function DocumentsCard({ patientId }: { patientId: string }) {
       setError('Only PDF, JPEG, and PNG files are supported.');
       return;
     }
-    if (Platform.OS === 'ios') {
-      Alert.prompt(
-        'Add a label?',
-        'e.g. "Blood report Mar 2026" — optional.',
-        [
-          { text: 'Skip', onPress: () => void doUpload(asset, mimeType) },
-          {
-            text: 'Attach',
-            onPress: (text?: string) => void doUpload(asset, mimeType, text?.trim() || undefined),
-          },
-        ],
-        'plain-text',
-      );
-    } else {
-      await doUpload(asset, mimeType);
-    }
+    await labelAndUpload(asset, mimeType);
   };
 
   const openDocument = async (entry: DocumentEntry) => {
@@ -635,7 +671,8 @@ function DocumentsCard({ patientId }: { patientId: string }) {
 
       {items.length === 0 ? (
         <Text style={styles.followupEmpty}>
-          No documents yet. Attach lab reports, scans, or past records for this patient.
+          No documents yet. Scan paper records with the camera, or attach lab reports, scans,
+          or past records for this patient.
         </Text>
       ) : (
         items.map((d) => (
@@ -674,26 +711,32 @@ function DocumentsCard({ patientId }: { patientId: string }) {
         ))
       )}
 
-      <Pressable
-        onPress={() => void pickAndUpload()}
-        disabled={busy}
-        style={({ pressed }) => [
-          styles.attachBtn,
-          busy && styles.disabled,
-          !busy && pressed && styles.pressed,
-        ]}
-        accessibilityRole="button"
-        accessibilityLabel="Attach a document"
-      >
-        {busy ? (
+      {busy ? (
+        <View style={styles.attachBtn}>
           <ActivityIndicator size="small" color={c.accent} />
-        ) : (
-          <>
+        </View>
+      ) : (
+        <View style={styles.attachRow}>
+          <Pressable
+            onPress={() => void scanWithCamera()}
+            style={({ pressed }) => [styles.attachBtn, styles.attachBtnHalf, pressed && styles.pressed]}
+            accessibilityRole="button"
+            accessibilityLabel="Scan a paper record with the camera"
+          >
+            <Feather name="camera" size={13} color={c.accent} />
+            <Text style={styles.attachBtnText}>SCAN</Text>
+          </Pressable>
+          <Pressable
+            onPress={() => void pickAndUpload()}
+            style={({ pressed }) => [styles.attachBtn, styles.attachBtnHalf, pressed && styles.pressed]}
+            accessibilityRole="button"
+            accessibilityLabel="Attach a document"
+          >
             <Feather name="paperclip" size={13} color={c.accent} />
-            <Text style={styles.attachBtnText}>ATTACH DOCUMENT</Text>
-          </>
-        )}
-      </Pressable>
+            <Text style={styles.attachBtnText}>ATTACH FILE</Text>
+          </Pressable>
+        </View>
+      )}
       {error ? <Text style={styles.errorText}>{error}</Text> : null}
     </View>
   );
@@ -1236,6 +1279,13 @@ const makeStyles = (c: ThemeColors) => StyleSheet.create({
     borderWidth: 1,
     borderColor: c.accentDim,
     backgroundColor: c.accentSoft,
+  },
+  attachRow: {
+    flexDirection: 'row',
+    gap: space.sm,
+  },
+  attachBtnHalf: {
+    flex: 1,
   },
   attachBtnText: {
     fontFamily: fonts.displayBold,

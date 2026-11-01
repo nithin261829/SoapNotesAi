@@ -16,6 +16,7 @@ from jinja2 import Environment, FileSystemLoader, select_autoescape
 from pydantic import BaseModel
 
 from app.auth.deps import ClinicianDep, TenantUserDep
+from app.interfaces.history import PatientKey
 from app.models.common import utc_now
 from app.models.recording import Recording
 from app.models.soap import SoapNote
@@ -57,6 +58,22 @@ def _clinic_ref(db, org_id: str, clinic_id: str):
 
 def _patient_ref(db, org_id: str, clinic_id: str, patient_id: str):
     return _clinic_ref(db, org_id, clinic_id).collection("patients").document(patient_id)
+
+
+def _reindex_note(user, patient_id: str, recording_id: str, soap: SoapNote) -> None:
+    """Keep patient-history search in step with the doctor's edits. Best effort."""
+    from app.main import get_patient_history
+
+    history = get_patient_history()
+    if history is None:
+        return
+    patient = PatientKey(user.org_id, user.active_clinic_id, patient_id)
+    try:
+        history.forget(patient, recording_id)
+        history.index_note(patient, soap, recording_id=recording_id,
+                           encounter_date=soap.patient.encounter_date.isoformat())
+    except Exception:
+        logger.exception("history_reindex_failed id=%s", recording_id)
 
 
 # ─── Endpoints ─────────────────────────────────────────────────────
@@ -127,11 +144,14 @@ def patch_recording_soap(
             "validated": stored.validated if stored else False,
             "signed_at": stored.signed_at if stored else None,
             "signed_by_uid": stored.signed_by_uid if stored else None,
+            # Cited history is generated server-side; clients can't add sources.
+            "interval_history": stored.interval_history if stored else [],
         }
     )
 
     ref.update({"soap": soap.model_dump(mode="json"), "updated_at": now})
     rec = rec.model_copy(update={"soap": soap, "updated_at": now})
+    _reindex_note(user, patient_id, recording_id, soap)
     logger.info("recording_soap_edited id=%s by=%s", recording_id, user.uid)
     return RecordingResponse(id=recording_id, recording=rec)
 
@@ -236,6 +256,7 @@ def render_pdf(recording_id: str, patient_id: str, user: TenantUserDep) -> Strea
             objective=rec.soap.objective,
             assessment=rec.soap.assessment,
             plan=rec.soap.plan,
+            interval_history=rec.soap.interval_history,
             transcript=(rec.transcript.text if rec.transcript else ""),
             clinic={"letterhead": letterhead_ctx},
             sheet="continuation" if is_continuation else "primary",

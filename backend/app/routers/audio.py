@@ -23,6 +23,7 @@ import secrets
 from app.auth.deps import ClinicianDep
 from app.config import Settings, get_settings
 from app.interfaces.audio_to_soap import AudioToSoap, AudioToSoapError
+from app.interfaces.history import PatientKey
 from app.models.common import utc_now
 from app.models.patient import Patient
 from app.models.recording import Recording, TranscriptDoc
@@ -30,6 +31,7 @@ from app.models.usage import UsageRecord
 from app.models.soap import SoapNote
 from app.services import pipeline
 from app.services.billing_service import charge_note, check_note_allowance, release_note_slot
+from app.services.patient_history import PatientHistory
 from app.services.firestore import get_db
 from app.services.storage import upload_audio as upload_audio_to_gcs
 
@@ -96,6 +98,12 @@ def _get_audio_to_soap() -> AudioToSoap:
     return get_audio_to_soap()
 
 
+def _get_patient_history() -> PatientHistory | None:
+    from app.main import get_patient_history
+
+    return get_patient_history()
+
+
 @router.post(
     "/upload",
     status_code=status.HTTP_201_CREATED,
@@ -129,6 +137,7 @@ async def upload_audio(
     ] = None,
     settings: Annotated[Settings, Depends(get_settings)] = None,  # type: ignore[assignment]
     audio_to_soap: Annotated[AudioToSoap, Depends(_get_audio_to_soap)] = None,  # type: ignore[assignment]
+    history: Annotated[PatientHistory | None, Depends(_get_patient_history)] = None,
 ) -> AudioUploadResponse:
     content_type = (audio.content_type or "application/octet-stream").lower()
     if content_type not in ALLOWED_MIME_TYPES:
@@ -333,6 +342,16 @@ async def upload_audio(
         clean_soap = result.soap.model_copy(
             update={"llm_provider": None, "llm_model_version": None}
         )
+        patient_key = PatientKey(user.org_id, user.active_clinic_id, patient_id)
+        if history is not None and not patient_created:
+            # Follow-up: compare with this patient's earlier notes and documents.
+            # Best effort; a failed lookup never blocks the doctor's note.
+            try:
+                clean_soap = clean_soap.model_copy(update={
+                    "interval_history": history.interval_history(
+                        patient_key, clean_soap, recording_id=recording_id)})
+            except Exception:
+                logger.exception("interval_history_failed id=%s", recording_id)
         recording = Recording(
             org_id=user.org_id,
             clinic_id=user.active_clinic_id,
@@ -352,6 +371,12 @@ async def upload_audio(
         patient_ref.collection("recordings").document(recording_id).set(
             recording.model_dump(mode="json")
         )
+        if history is not None:
+            try:
+                history.index_note(patient_key, clean_soap, recording_id=recording_id,
+                                   encounter_date=encounter_date_iso[:10])
+            except Exception:
+                logger.exception("history_index_failed id=%s", recording_id)
         # Backend-only usage/cost accounting — denied to clients by rules.
         usage = UsageRecord(
             org_id=user.org_id,
