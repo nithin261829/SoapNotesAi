@@ -23,6 +23,7 @@ from fastapi import APIRouter, File, Form, HTTPException, UploadFile, status
 from pydantic import BaseModel
 
 from app.auth.deps import ClinicianDep, TenantUserDep
+from app.interfaces.history import PatientKey
 from app.models.document import PatientDocument
 from app.services.firestore import get_db
 
@@ -82,6 +83,13 @@ def _require_patient(db, user, patient_id: str):
             status_code=status.HTTP_404_NOT_FOUND, detail="patient_not_found"
         )
     return ref
+
+
+def _patient_history():
+    # Imported here to break the circular import (router → main).
+    from app.main import get_patient_history
+
+    return get_patient_history()
 
 
 def _sanitize_filename(raw: Optional[str], extension: str) -> str:
@@ -167,6 +175,10 @@ async def upload_document(
             blob = bucket.blob(path)
             blob.upload_from_filename(tmp_path, content_type=content_type)
             gs_uri = f"gs://{bucket.name}/{path}"
+            history = _patient_history()
+            if history is not None:
+                with open(tmp_path, "rb") as f:
+                    file_bytes = f.read()
         except Exception as e:
             logger.exception("document_upload_failed patient=%s", patient_id)
             raise HTTPException(
@@ -197,6 +209,16 @@ async def upload_document(
         "document_uploaded id=%s patient=%s bytes=%d mime=%s by=%s",
         doc_id, patient_id, bytes_written, content_type, user.uid,
     )
+    if history is not None:
+        # Read and index the scan so follow-up notes can cite it. Best effort:
+        # the upload already succeeded.
+        try:
+            history.index_document(
+                PatientKey(user.org_id, user.active_clinic_id, patient_id),
+                document_id=doc_id, file_bytes=file_bytes, mime_type=content_type,
+                date=document.created_at.date().isoformat(), label=clean_label or safe_name)
+        except Exception:
+            logger.exception("document_index_failed id=%s", doc_id)
     return DocumentResponse(id=doc_id, document=document)
 
 
@@ -282,4 +304,10 @@ def delete_document(patient_id: str, doc_id: str, user: ClinicianDep) -> None:
         logger.warning("document_blob_delete_failed id=%s patient=%s", doc_id, patient_id)
 
     ref.delete()
+    history = _patient_history()
+    if history is not None:
+        try:
+            history.forget(PatientKey(user.org_id, user.active_clinic_id, patient_id), doc_id)
+        except Exception:
+            logger.exception("document_unindex_failed id=%s", doc_id)
     logger.info("document_deleted id=%s patient=%s by=%s", doc_id, patient_id, user.uid)

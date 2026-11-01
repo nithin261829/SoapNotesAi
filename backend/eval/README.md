@@ -38,3 +38,24 @@ notes and judge verdicts stay in `eval/.cache/` (gitignored).
 
 **Limits:** TTS audio is cleaner than a real clinic, the set is English only, and the
 judge is an LLM (`gemini-2.5-pro` by default; pass `--judge`), so its labels should be spot-checked.
+
+## Patient-history RAG eval
+
+Scores `app/services/patient_history.py`, which adds a cited interval history to
+follow-up notes from the patient's earlier notes and uploaded documents.
+
+ACI-Bench has one visit per patient, so `history_cases.py` has an LLM write
+synthetic physiotherapy patients: two earlier visits for the main problem, one
+unrelated visit, a relevant scanned report, an unrelated report, today's
+follow-up, and the facts a good interval history should state (with the records
+each fact needs). Every note is validated against `SoapNote`.
+
+```bash
+uv run python -m eval.history_cases --n 12 --project <vertex project>   # ~$0.03 per patient
+uv run python -m eval.history_eval --project <vertex project>          # embeddings + comparer + judge
+```
+
+All patients go into one shared store, so the run also checks that no chunk from
+another patient is ever retrieved. Reported: retrieval recall of the needed
+records, expected facts covered, statements supported by their citations,
+citations of the unrelated records, and statements the citation guardrail dropped.

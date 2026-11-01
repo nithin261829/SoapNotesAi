@@ -25,6 +25,7 @@ from app.routers import invites as invites_router
 from app.routers import patients as patients_router
 from app.routers import recordings as recordings_router
 from app.routers import soap as soap_router
+from app.services.patient_history import PatientHistory
 from app.version import API_PREFIX, __version__, get_build_info
 
 logger = logging.getLogger("soapnotesai")
@@ -54,6 +55,33 @@ def get_audio_to_soap() -> AudioToSoap:
         project=settings.vertex_project_id,
         location=settings.vertex_location,
         model=settings.vertex_model,
+    )
+
+
+@lru_cache(maxsize=1)
+def get_patient_history() -> PatientHistory | None:
+    """Patient-history RAG, or None when PATIENT_HISTORY_ENABLED is off."""
+    settings = get_settings()
+    if not settings.patient_history_enabled:
+        return None
+    import vertexai
+
+    from app.providers.history_vertex import (
+        FirestoreHistoryStore,
+        VertexGeminiDocumentReader,
+        VertexGeminiHistoryComparer,
+        VertexTextEmbedder,
+    )
+    from app.services.firestore import get_db
+    from app.services.patient_history import PatientHistory
+
+    vertexai.init(project=settings.vertex_project_id, location=settings.vertex_location)
+    logger.info("Patient history: on, embeddings=%s", settings.embedding_model)
+    return PatientHistory(
+        store=FirestoreHistoryStore(get_db),
+        embedder=VertexTextEmbedder(model=settings.embedding_model),
+        comparer=VertexGeminiHistoryComparer(model=settings.vertex_model),
+        reader=VertexGeminiDocumentReader(model=settings.vertex_model),
     )
 
 
