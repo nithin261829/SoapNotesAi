@@ -16,6 +16,8 @@ import { useStyles, useThemeColors } from '@/theme/ThemeContext';
 import { font, radii, space, type ThemeColors } from '@/theme/tokens';
 import type {
   Allergy,
+  HistorySource,
+  HistoryStatement,
   Medication,
   Objective,
   Plan,
@@ -162,6 +164,11 @@ export function SoapEditor({ soap, transcript, onChange, hideTranscript }: Props
         />
       </Card>
 
+      {/* INTERVAL HISTORY (read-only, follow-ups only) */}
+      {soap.interval_history && soap.interval_history.length > 0 ? (
+        <IntervalHistory statements={soap.interval_history} />
+      ) : null}
+
       {/* ASSESSMENT */}
       <Card
         tag="Clinical impression"
@@ -263,6 +270,35 @@ function Card({
       <View style={styles.divider} />
       <View style={styles.cardBody}>{children}</View>
     </View>
+  );
+}
+
+// ─── Interval history (read-only) ─────────────────────────────────
+
+function sourceLine(s: HistorySource): string {
+  if (!s.date) return s.label;
+  const d = new Date(`${s.date.slice(0, 10)}T00:00:00`);
+  const when = Number.isNaN(d.getTime())
+    ? s.date
+    : d.toLocaleDateString([], { day: 'numeric', month: 'short', year: 'numeric' });
+  return `${s.label} · ${when}`;
+}
+
+function IntervalHistory({ statements }: { statements: HistoryStatement[] }) {
+  const styles = useStyles(makeStyles);
+  return (
+    <Card
+      tag="Patient history"
+      title="Interval history"
+      description="Compared with this patient's earlier notes and scanned records. Each line names its source."
+    >
+      {statements.map((s, i) => (
+        <View key={i} style={styles.historyLine}>
+          <Text style={styles.historyText}>{s.text}</Text>
+          <Text style={styles.historySources}>{s.sources.map(sourceLine).join('   ')}</Text>
+        </View>
+      ))}
+    </Card>
   );
 }
 
@@ -923,4 +959,9 @@ const makeStyles = (c: ThemeColors) => StyleSheet.create({
   },
 
   empty: { fontSize: font.size.sm, color: c.textDim, fontStyle: 'italic' },
+
+  // Interval history (read-only)
+  historyLine: { gap: 4 },
+  historyText: { fontSize: font.size.base - 1, color: c.text, lineHeight: 21 },
+  historySources: { fontSize: font.size.xs, color: c.accent, letterSpacing: 0.2 },
 });

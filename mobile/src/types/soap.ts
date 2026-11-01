@@ -66,12 +66,27 @@ export interface Plan {
   referrals: string[];
 }
 
+// Written by the server on follow-up visits from the patient's earlier notes and
+// scanned documents; read-only in the app (the server keeps it on edits).
+export interface HistorySource {
+  source: 'note' | 'document';
+  source_id: string;
+  date?: string | null;
+  label: string;
+}
+
+export interface HistoryStatement {
+  text: string;
+  sources: HistorySource[];
+}
+
 export interface SoapNote {
   patient: PatientMeta;
   subjective: Subjective;
   objective: Objective;
   assessment: Assessment;
   plan: Plan;
+  interval_history?: HistoryStatement[];
 
   source_transcript_id?: string | null;
   llm_provider?: string | null;

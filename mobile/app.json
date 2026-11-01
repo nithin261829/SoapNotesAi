@@ -12,13 +12,15 @@
       "supportsTablet": false,
       "bundleIdentifier": "com.soapnotesai.app",
       "infoPlist": {
-        "NSMicrophoneUsageDescription": "SoapNotesAi records your dictation to generate SOAP notes. Audio is sent only to the services you have configured."
+        "NSMicrophoneUsageDescription": "SoapNotesAi records your dictation to generate SOAP notes. Audio is sent only to the services you have configured.",
+        "NSCameraUsageDescription": "SoapNotesAi uses the camera to scan paper records, such as old notes and reports, into a patient's file."
       }
     },
     "android": {
       "package": "com.soapnotesai.app",
       "permissions": [
-        "RECORD_AUDIO"
+        "RECORD_AUDIO",
+        "CAMERA"
       ],
       "adaptiveIcon": {
         "foregroundImage": "./assets/icon.png",
@@ -37,6 +39,13 @@
         "expo-audio",
         {
           "microphonePermission": "SoapNotesAi records your dictation to generate SOAP notes."
+        }
+      ],
+      [
+        "expo-image-picker",
+        {
+          "cameraPermission": "SoapNotesAi uses the camera to scan paper records, such as old notes and reports, into a patient's file.",
+          "photosPermission": "SoapNotesAi saves scanned records to the patient's file; it does not browse your photo library."
         }
       ],
       "expo-web-browser",

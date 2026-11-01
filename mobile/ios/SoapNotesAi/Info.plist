@@ -45,6 +45,10 @@
       <key>NSAllowsLocalNetworking</key>
       <true/>
     </dict>
+    <key>NSCameraUsageDescription</key>
+    <string>SoapNotesAi uses the camera to scan paper records, such as old notes and reports, into a patient's file.</string>
+    <key>NSPhotoLibraryUsageDescription</key>
+    <string>SoapNotesAi saves scanned records to the patient's file; it does not browse your photo library.</string>
     <key>NSMicrophoneUsageDescription</key>
     <string>SoapNotesAi records your dictation to generate SOAP notes.</string>
     <key>NSUserActivityTypes</key>
