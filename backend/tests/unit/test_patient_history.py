@@ -205,3 +205,20 @@ def test_pdf_shows_interval_history_with_its_sources():
 
 def test_pdf_has_no_interval_history_section_on_first_visits():
     assert "Interval history" not in _render_pdf_html(knee_note("knee pain 6/10", "rest"))
+
+
+def test_record_ids_written_into_the_text_are_removed():
+    history, _ = make_history(lambda sources: [
+        ("Pain 3/10 today, down from 6/10 at the first visit ([note-alice-1-subjective]).",
+         ["note-alice-1-subjective"]),
+        ("Flexion 120 today [note-alice-1-objective, note-alice-1-plan], up from 90.",
+         ["note-alice-1-subjective"]),
+    ])
+    history.index_note(ALICE, knee_note("knee pain 6/10", "quads"), recording_id="alice-1",
+                       encounter_date="2026-06-28")
+    statements = history.interval_history(ALICE, knee_note("knee pain 3/10", "continue"),
+                                          recording_id="alice-2")
+    assert [s.text for s in statements] == [
+        "Pain 3/10 today, down from 6/10 at the first visit.",
+        "Flexion 120 today, up from 90.",
+    ]

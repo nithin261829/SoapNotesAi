@@ -32,6 +32,9 @@ logger = logging.getLogger(__name__)
 
 SECTIONS = ("subjective", "objective", "assessment", "plan")
 DOCUMENT_PART_CHARS = 1200
+# The model sometimes writes chunk IDs into the sentence ("... 4/10 [note-r1-objective]");
+# the doctor sees sources from `sources`, so IDs are removed from the text.
+_INLINE_IDS = re.compile(r"\s*\(?\[(?:note|document)-[^\]]*\]\)?")
 
 
 def _lines(value: Any, prefix: str = "") -> list[str]:
@@ -133,6 +136,7 @@ class PatientHistory:
         statements, dropped = [], 0
         for text, cited_ids in self.comparer.compare(new_note=note_text(soap), sources=sources):
             cited = [by_id[i] for i in dict.fromkeys(cited_ids) if i in by_id]
+            text = re.sub(r"\s+([.,;])", r"\1", _INLINE_IDS.sub("", text))
             if not text.strip() or not cited:
                 dropped += 1  # uncited or citing something that was never retrieved
                 continue

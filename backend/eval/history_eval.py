@@ -185,7 +185,7 @@ def main() -> None:
     ap.add_argument("--judge", default="gemini-3.1-pro-preview")
     ap.add_argument("--judge-location", default="global")
     ap.add_argument("--cases-model", default="gemini-3.1-pro-preview")
-    ap.add_argument("--tag", default="", help="suffix for the run folder, e.g. -v2")
+    ap.add_argument("--tag", default="", help="suffix for the run folder, e.g. v2")
     args = ap.parse_args()
 
     import vertexai
@@ -220,7 +220,7 @@ def main() -> None:
     for case, row in zip(cases, rows, strict=True):
         row.update(judge(judge_model, case, row), expected_total=len(case["expected"]))
 
-    run = f"{date.today()}-history-{args.comparer}{args.tag}"
+    run = f"{date.today()}-history-{args.comparer}" + (f"-{args.tag}" if args.tag else "")
     raw = HERE / ".cache" / "runs" / run
     raw.mkdir(parents=True, exist_ok=True)
     (raw / "rows.json").write_text(json.dumps(rows, indent=1))
