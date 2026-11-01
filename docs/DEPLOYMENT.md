@@ -119,7 +119,14 @@ Store copy + asset checklist: `docs/store/listing.md`. Privacy policy to host:
   email **you@example.com** (Cloud Monitoring alert).
 - Logs: `deploy/scripts/logs.sh` or Cloud Console → Cloud Run → Logs.
 - Before real launch: set `MIN_INSTANCES=1` in `deploy/scripts/env.sh` and
-  redeploy to eliminate cold starts (~₹500–800/month).
+  redeploy to eliminate cold starts (~₹500–800/month per warm instance).
+  `deploy.sh` removes older revision tags after each deploy, because every
+  tagged revision keeps its own warm instance.
+- Billing re-enabled after an outage? Old tagged revisions from before this
+  cleanup still have min instances set. Run `deploy.sh` right away, or:
+  `gcloud run services update soapnotesai-backend --region us-central1 --min-instances 0`
+  and remove the old tags with `gcloud run services update-traffic
+  soapnotesai-backend --region us-central1 --clear-tags` (then re-tag if needed).
 
 ## Tests — run before every backend deploy
 

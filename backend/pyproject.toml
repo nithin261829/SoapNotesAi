@@ -40,6 +40,8 @@ ignore = ["S101"]  # asserts are fine in tests
 
 [tool.ruff.lint.per-file-ignores]
 "tests/**" = ["S"]
+# Dev-only eval scripts: shell out to local say/ffmpeg; prompts are long strings.
+"eval/**" = ["S603", "S607", "E501"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

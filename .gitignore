@@ -59,3 +59,6 @@ mobile/android/app/google-services.json
 CLAUDE.md
 mobile/ios/.xcode.env.local
 *.local.json
+
+# Eval: downloaded dataset, synthesized audio, raw model outputs
+backend/eval/.cache/

@@ -69,6 +69,22 @@ gcloud run deploy "${SERVICE_NAME}" \
   --tag "${REVISION_TAG}" \
   --quiet
 
+# A tagged revision counts as serving, so with MIN_INSTANCES > 0 every tagged
+# revision keeps its own warm instance: 7 of them ran 24/7 from Sep to Oct 2026.
+# Keep only the newest KEEP_TAGS tags; rollback.sh works by revision name.
+STALE_TAGS=$(gcloud run services describe "${SERVICE_NAME}" --project "${PROJECT_ID}" \
+  --region "${REGION}" --format='value(status.traffic[].tag)' \
+  | tr ';' '\n' | { grep -E '^v[0-9]{6}-[0-9]{6}$' || true; } \
+  | sort -r | tail -n "+$((KEEP_TAGS + 1))" | paste -sd, -)
+if [[ -n "${STALE_TAGS}" ]]; then
+  log "Removing old revision tags: ${STALE_TAGS}"
+  gcloud run services update-traffic "${SERVICE_NAME}" \
+    --project "${PROJECT_ID}" \
+    --region "${REGION}" \
+    --remove-tags "${STALE_TAGS}" \
+    --quiet
+fi
+
 URL=$(gcloud run services describe "${SERVICE_NAME}" --project "${PROJECT_ID}" --region "${REGION}" --format='value(status.url)')
 log "Done."
 echo
